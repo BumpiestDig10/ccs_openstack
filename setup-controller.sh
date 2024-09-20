@@ -3786,7 +3786,16 @@ if [ $OSVERSION -ge $OSPIKE -a -z "${TELEMETRY_GRAFANA_DONE}" ]; then
     curl https://packages.grafana.com/gpg.key | sudo apt-key add -
     apt-get update
 
-    $APTGETINSTALL grafana
+    #
+    # gnocchi datasource does not work in grafana>=11, so use the last known
+    # version of 10.x if it is available.
+    #
+    apt-cache show grafana=10.4.8 | grep -q ^Filename:
+    if [ $? -eq 0 ]; then
+	$APTGETINSTALL grafana=10.4.8
+    else
+	$APTGETINSTALL grafana
+    fi
     maybe_install_packages sqlite3
     systemctl daemon-reload
     # grafana-cli doesn't have sane defaults that match the config, so
