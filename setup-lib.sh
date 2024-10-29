@@ -250,6 +250,15 @@ maybe_install_packages() {
 }
 
 ##
+## Old images with grafana preinstalled need the latest grafana repo key,
+## lest apt-get update fail.
+##
+dpkg-query -l grafana
+if [ $? -eq 0 ]; then
+    curl https://packages.grafana.com/gpg.key | sudo apt-key add -
+fi
+
+##
 ## Figure out the system python version.
 ##
 python --version
