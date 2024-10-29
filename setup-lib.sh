@@ -296,15 +296,23 @@ PYTHONBIN=`which $PYTHON`
 ##
 ## Grab our geni creds, and create a GENI credential cert
 ##
-are_packages_installed ${PYTHONPKGPREFIX}-cryptography ${PYTHONPKGPREFIX}-future \
-    ${PYTHONPKGPREFIX}-six ${PYTHONPKGPREFIX}-lxml ${PYTHONPKGPREFIX}-pip
+if [ ${PYVERS} -eq 2 ]; then
+    are_packages_installed ${PYTHONPKGPREFIX}-cryptography
+else
+    are_packages_installed ${PYTHONPKGPREFIX}-cryptography ${PYTHONPKGPREFIX}-future \
+        ${PYTHONPKGPREFIX}-six ${PYTHONPKGPREFIX}-lxml ${PYTHONPKGPREFIX}-pip
+fi
 success=`expr $? = 0`
 # Keep trying again with updated cache forever;
 # we must have this package.
 while [ ! $success -eq 0 ]; do
     do_apt_update
-    apt-get $DPKGOPTS install $APTGETINSTALLOPTS ${PYTHONPKGPREFIX}-cryptography \
-	${PYTHONPKGPREFIX}-future ${PYTHONPKGPREFIX}-six ${PYTHONPKGPREFIX}-lxml ${PYTHONPKGPREFIX}-pip
+    if [ ${PYVERS} -eq 2 ]; then
+	apt-get $DPKGOPTS install $APTGETINSTALLOPTS ${PYTHONPKGPREFIX}-cryptography
+    else
+	apt-get $DPKGOPTS install $APTGETINSTALLOPTS ${PYTHONPKGPREFIX}-cryptography \
+	    ${PYTHONPKGPREFIX}-future ${PYTHONPKGPREFIX}-six ${PYTHONPKGPREFIX}-lxml ${PYTHONPKGPREFIX}-pip
+    fi
     success=$?
 done
 
