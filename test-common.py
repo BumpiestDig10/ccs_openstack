@@ -215,12 +215,12 @@ XMLRPC_SERVER   = { "ch" : "www.emulab.net", "sr" : "www.emulab.net" }
 SERVER_PATH = { "ch" : ":12369/protogeni/xmlrpc/",
                 "sr" : ":12370/protogeni/pubxmlrpc/" }
 
+url = None
 try:
     descriptors = cert.extensions.get_extension_for_oid(
         ExtensionOID.AUTHORITY_INFORMATION_ACCESS).value
-    url = None
     for d in descriptors:
-        if d.access_method.dotted_string == '2.25.305821105408246119474742976030998643995':
+        if d.access_method.dotted_string in [ '2.25.305821105.408246119.47474297.603099864.3995', '2.25.305821105408246119474742976030998643995' ]:
             url = d.access_location.value
             break
     if url:
