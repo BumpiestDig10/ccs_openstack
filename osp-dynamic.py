@@ -133,8 +133,8 @@ class OSDynSliceManagerHelper(protogeniclientlib.DynSliceManagerHelper,
         # learn how to modify.
         #
         self.pc.defineParameter("release","OpenStack Release",
-                           portal.ParameterType.STRING,"kilo",[("kilo","Kilo"),("juno","Juno")],
-                           longDescription="We provide either OpenStack Kilo on Ubuntu 15, or OpenStack Juno on Ubuntu 14.10.  OpenStack is installed from packages available on these distributions.")
+                           portal.ParameterType.STRING,"antelope",[("antelope","Antelope"),("zed","Zed")],
+                           longDescription="We provide OpenStack Antelope or Zed on Ubuntu 22.04 LTS. OpenStack is installed from packages available through the Ubuntu Cloud Archive.")
         self.pc.defineParameter("computeNodeCount", "Number of compute nodes (at Site 1)",
                            portal.ParameterType.INTEGER, 1)
         self.pc.defineParameter("publicIPCount", "Number of public IP addresses",
@@ -428,11 +428,11 @@ class OSDynSliceManagerHelper(protogeniclientlib.DynSliceManagerHelper,
             self.ipSubnetsUsed += 1
             pass
         
-        if self.params.release == "juno":
-            self.image_os = 'UBUNTU14-10-64'
+        if self.params.release == "antelope":
+            self.image_os = 'UBUNTU22-04-64'
         else:
-            self.image_os = 'UBUNTU15-04-64'
-            pass
+            # Default to latest stable release
+            self.image_os = 'UBUNTU22-04-64'
         if self.params.fromScratch:
             self.image_tag_cn = 'STD'
             self.image_tag_nm = 'STD'
@@ -908,11 +908,11 @@ class OSParameters(RSpec.Resource):
 #        param = ET.SubElement(el,paramXML)
 #        param.text = 'OBJECTHOST="%s"' % (self.helper.params.objectStorageHost,)
         param = ET.SubElement(el,paramXML)
-        param.text = 'DATALANS="%s"' % (' '.join(map(lambda(lan): lan.client_id,self.helper.alllans)))
+        param.text = 'DATALANS="%s"' % (' '.join(lan.client_id for lan in self.helper.alllans))
         param = ET.SubElement(el,paramXML)
-        param.text = 'DATAFLATLANS="%s"' % (' '.join(map(lambda(i): self.helper.flatlans[i].client_id,range(1,self.helper.params.flatDataLanCount + 1))))
+        param.text = 'DATAFLATLANS="%s"' % (' '.join(self.helper.flatlans[i].client_id for i in range(1,self.helper.params.flatDataLanCount + 1)))
         param = ET.SubElement(el,paramXML)
-        param.text = 'DATAVLANS="%s"' % (' '.join(map(lambda(i): self.helper.vlans[i].client_id,range(1,self.helper.params.vlanDataLanCount + 1))))
+        param.text = 'DATAVLANS="%s"' % (' '.join(self.helper.vlans[i].client_id for i in range(1,self.helper.params.vlanDataLanCount + 1)))
         param = ET.SubElement(el,paramXML)
         param.text = 'DATAVXLANS="%d"' % (self.helper.params.vxlanDataLanCount,)
         param = ET.SubElement(el,paramXML)
@@ -984,5 +984,5 @@ if __name__ == '__main__':
     if 'GENILIB_PORTAL_MODE' in os.environ:
         helper.pc.printRequestRSpec(helper.rspec)
     else:
-        print rspecXML
+        print(rspecXML)
     pass

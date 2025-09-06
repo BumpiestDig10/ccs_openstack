@@ -34,8 +34,8 @@ pc = portal.Context()
 # Define *many* parameters; see the help docs in geni-lib to learn how to modify.
 #
 pc.defineParameter("release","OpenStack Release",
-                   portal.ParameterType.STRING,"2023.1",[("2023.1","Antelope"),("zed","Zed")],
-                   longDescription="We provide OpenStack 2023.1 (Antelope) and Zed on Ubuntu 22.04 LTS (Jammy Jellyfish). OpenStack is installed from packages available in the Ubuntu Cloud Archive.")
+                   portal.ParameterType.STRING,"antelope",[("antelope","Antelope"),("zed","Zed")],
+                   longDescription="We provide OpenStack Antelope or Zed on Ubuntu 22.04 LTS. OpenStack is installed from packages available through the Ubuntu Cloud Archive.")
 pc.defineParameter("computeNodeCount", "Number of compute nodes (at Site 1)",
                    portal.ParameterType.INTEGER, 1)
 pc.defineParameter("osNodeType", "Hardware Type",
