@@ -627,69 +627,45 @@ doAptUpdate = params.doAptUpdate
 
 #
 # Construct the disk image URNs we're going to set the various nodes to load.
-# NB: we stopped generating OSNM images at Rocky for x86/aarch64; and at
-# Queens for ppc64le.
+# Using Ubuntu 22.04 for all releases as base image
 #
 image_project = 'emulab-ops'
 image_urn = 'emulab.net'
 image_tag_rel = ''
-if params.release == "juno":
-    image_os = 'UBUNTU14-10-64'
-    # Use the old "wildcard" image URN behavior up to Mitaka.
-    image_urn = 'utah.cloudlab.us'
-elif params.release == "kilo":
-    image_os = 'UBUNTU15-04-64'
-    image_urn = 'utah.cloudlab.us'
-elif params.release == 'liberty':
-    image_os = 'UBUNTU15-10-64'
-    image_urn = 'utah.cloudlab.us'
-elif params.release == 'mitaka':
-    image_os = 'UBUNTU16-64'
-elif params.release == 'newton':
-    image_os = 'UBUNTU16-64'
-    image_tag_rel = '-N'
-elif params.release == 'ocata':
-    image_os = 'UBUNTU16-64'
-    image_tag_rel = '-O'
-elif params.release == 'pike':
-    image_os = 'UBUNTU16-64'
-    image_tag_rel = '-P'
-elif params.release == 'queens':
-    image_os = 'UBUNTU18-64'
-    image_tag_rel = '-Q'
-elif params.release == 'rocky':
-    image_os = 'UBUNTU18-64'
-    image_tag_rel = '-R'
-elif params.release == 'stein':
-    image_os = 'UBUNTU18-64'
-    image_tag_rel = '-S'
-elif params.release == 'train':
-    image_os = 'UBUNTU18-64'
-    image_tag_rel = '-T'
-elif params.release == 'ussuri':
-    image_os = 'UBUNTU20-64'
-    image_tag_rel = '-U'
-elif params.release == 'victoria':
-    image_os = 'UBUNTU20-64'
-    image_tag_rel = '-V'
-elif params.release == 'wallaby':
-    image_os = 'UBUNTU20-64'
-    image_tag_rel = '-W'
-elif params.release == 'xena':
-    image_os = 'UBUNTU20-64'
-    image_tag_rel = '-X'
-elif params.release == 'yoga':
-    image_os = 'UBUNTU20-64'
-    image_tag_rel = '-Y'
-elif params.release == 'zed':
-    image_os = 'UBUNTU22-64'
+
+# Use Ubuntu 22.04 for all releases
+image_os = 'UBUNTU22-64'
+fromScratch = True
+doAptDistUpgrade = True
+doAptUpdate = True
+
+# Set release-specific tags if needed
+if params.release == 'zed':
     image_tag_rel = '-Z'
-else:
-    image_os = 'UBUNTU18-64'
-    fromScratch = True
-    doAptDistUpgrade = True
-    doAptUpdate = True
-    pass
+elif params.release == 'yoga':
+    image_tag_rel = '-Y'
+elif params.release == 'xena':
+    image_tag_rel = '-X'
+elif params.release == 'wallaby':
+    image_tag_rel = '-W'
+elif params.release == 'victoria':
+    image_tag_rel = '-V'
+elif params.release == 'ussuri':
+    image_tag_rel = '-U'
+elif params.release == 'train':
+    image_tag_rel = '-T'
+elif params.release == 'stein':
+    image_tag_rel = '-S'
+elif params.release == 'rocky':
+    image_tag_rel = '-R'
+elif params.release == 'queens':
+    image_tag_rel = '-Q'
+elif params.release == 'pike':
+    image_tag_rel = '-P'
+elif params.release == 'ocata':
+    image_tag_rel = '-O'
+elif params.release == 'newton':
+    image_tag_rel = '-N'
 
 if params.release in [ "victoria", "wallaby", "xena", "yoga", "zed" ]:
     fromScratch = True
@@ -712,20 +688,16 @@ else:
     pass
 
 #
-# XXX: special handling for ppc64le at Clemson because of special disk
-# image names for UBUNTU18-64-STD and UBUNTU18-*OSC*-Q, and because only
-# >= Queens is available for them.
+# Special handling for ppc64le at Clemson using Ubuntu 22.04 where possible
 #
 if params.osNodeType == 'ibm8335':
     image_urn = 'clemson.cloudlab.us'
-    if fromScratch:
-        image_os = 'UBUNTU18-PPC64LE'
-        image_tag_cn = image_tag_nm = image_tag_cp = ''
-    elif params.release == 'queens':
+    # Use Ubuntu 22.04 PPC64LE images when available
+    image_os = 'UBUNTU22-PPC64LE'
+    image_tag_cn = image_tag_nm = image_tag_cp = ''
+    # If Ubuntu 22.04 is not available, fall back to Ubuntu 18.04
+    if params.release == 'queens':
         image_os = 'UBUNTU18-PPC'
-        # See above comment; we stopped generating OSNM images at Rocky
-        # for x86/aarch64; and at Queens for ppc64le.
-        image_tag_nm = ''
 
     if params.release not in [ 'queens','rocky','stein','train','ussuri','victoria','wallaby','xena','yoga','zed' ]:
         perr = portal.ParameterError(
@@ -760,7 +732,7 @@ setfwdesire = True
 if params.firewallStyle in ('open','closed','basic'):
     firewalling = True
     fw = rspec.ExperimentFirewall('fw',params.firewallStyle)
-    fw.disk_image = 'urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU16-64-STD'
+    fw.disk_image = 'urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD'
     fw.Site("1")
     if params.osNodeType:
         fw.hardware_type = params.osNodeType
@@ -770,7 +742,7 @@ if params.computeNodeCountSite2 > 0:
     # Firewall node, Site 2.
     if params.firewallStyle in ('open','closed','basic'):
         fw2 = rspec.ExperimentFirewall('fw-s2',params.firewallStyle)
-        fw2.disk_image = 'urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU16-64-STD'
+        fw2.disk_image = 'urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD'
         fw2.Site("2")
         for rule in fwrules:
             fw2.addRule(rule)
