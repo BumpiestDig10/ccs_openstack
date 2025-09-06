@@ -1,3 +1,3 @@
-These are a collection of scripts that install and configuration
-Openstack Juno on Ubuntu 14 and onwards, within an Emulab/Apt/Cloudlab
+These are a collection of scripts that install and configure
+OpenStack 2023.1 (Antelope) on Ubuntu 22.04 LTS (Jammy Jellyfish), within an Emulab/Apt/Cloudlab
 testbed experiment.

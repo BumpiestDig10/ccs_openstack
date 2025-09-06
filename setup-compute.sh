@@ -161,7 +161,7 @@ if [ $OSVERSION -lt $OSNEWTON ]; then
 else
     crudini --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
 fi
-crudini --set /etc/nova/nova.conf DEFAULT verbose ${VERBOSE_LOGGING}
+#crudini --set /etc/nova/nova.conf DEFAULT verbose ${VERBOSE_LOGGING}
 crudini --set /etc/nova/nova.conf DEFAULT debug ${DEBUG_LOGGING}
 
 if [ $OSVERSION -lt $OSKILO ]; then
@@ -255,6 +255,58 @@ if [ $OSVERSION -ge $OSLIBERTY ]; then
 	firewall_driver nova.virt.firewall.NoopFirewallDriver
 fi
 
+
+# ADD THE SERVICE TOKEN CONFIGURATION HERE
+# Enhanced service-to-service API security for Epoxy and later
+if [ $OSVERSION -ge $OSEPOXY ]; then
+    # Configure service role requirements for API access
+    crudini --set /etc/nova/nova.conf DEFAULT service_token_roles_required True
+    
+    # Configure service user for enhanced security
+    crudini --set /etc/nova/nova.conf service_user \
+    auth_type password
+    crudini --set /etc/nova/nova.conf service_user \
+    auth_url http://${CONTROLLER}:${KADMINPORT}/v3
+    crudini --set /etc/nova/nova.conf service_user \
+    username nova
+    crudini --set /etc/nova/nova.conf service_user \
+    password "${NOVA_PASS}"
+    crudini --set /etc/nova/nova.conf service_user \
+    project_name service
+    crudini --set /etc/nova/nova.conf service_user \
+    user_domain_name default
+    crudini --set /etc/nova/nova.conf service_user \
+    project_domain_name default
+    
+    # Also update keystone_authtoken for service role support
+    crudini --set /etc/nova/nova.conf keystone_authtoken \
+    service_token_roles admin,service
+fi
+
+# Enhanced keystone configuration for recent releases
+if [ $OSVERSION -ge $OSCARACAL ]; then
+    crudini --set /etc/nova/nova.conf keystone_authtoken \
+        service_token_roles admin,service
+    crudini --set /etc/nova/nova.conf keystone_authtoken \
+        service_token_roles_required True
+    
+    # Enable service tokens for improved reliability
+    crudini --set /etc/nova/nova.conf service_user \
+        auth_type password
+    crudini --set /etc/nova/nova.conf service_user \
+        auth_url http://${CONTROLLER}:${KADMINPORT}/v3
+    crudini --set /etc/nova/nova.conf service_user \
+        username nova
+    crudini --set /etc/nova/nova.conf service_user \
+        password "${NOVA_PASS}"
+    crudini --set /etc/nova/nova.conf service_user \
+        project_name service
+    crudini --set /etc/nova/nova.conf service_user \
+        user_domain_name default
+    crudini --set /etc/nova/nova.conf service_user \
+        project_domain_name default
+fi
+
 VNCSECTION="DEFAULT"
 VNCENABLEKEY="vnc_enabled"
 if [ $OSVERSION -ge $OSLIBERTY ]; then
@@ -286,6 +338,16 @@ else
     crudini --set /etc/nova/nova.conf $VNCSECTION \
 	novncproxy_base_url "http://${cname}:6080/vnc_auto.html"
 fi
+
+# Add VeNCrypt support for enhanced VNC security
+if [ $OSVERSION -ge $OSCARACAL ]; then
+    # Enable VeNCrypt authentication for encrypted VNC connections
+    crudini --set /etc/nova/nova.conf $VNCSECTION auth_schemes vencrypt,none
+    crudini --set /etc/nova/nova.conf $VNCSECTION vencrypt_ca_certs /etc/nova/ssl/ca-cert.pem
+    crudini --set /etc/nova/nova.conf $VNCSECTION vencrypt_client_key /etc/nova/ssl/client-key.pem
+    crudini --set /etc/nova/nova.conf $VNCSECTION vencrypt_client_cert /etc/nova/ssl/client-cert.pem
+fi
+
 
 #
 # Change $VNCENABLEKEY = True for x86 -- but for aarch64, there is
@@ -324,6 +386,17 @@ if [ ${ENABLE_HOST_PASSTHROUGH} = 1 ]; then
     crudini --set /etc/nova/nova-compute.conf libvirt cpu_mode host-passthrough
 fi
 
+# GPU/PCI configuration for Epoxy and later releases
+if [ $OSVERSION -ge $OSEPOXY ]; then
+    # Support for new kernel vfio-PCI variant drivers (e.g., Nvidia GRID on Ubuntu 24.04)
+    if [ "${ENABLE_GPU_SUPPORT}" = "1" ]; then
+        crudini --set /etc/nova/nova-compute.conf pci passthrough_whitelist_regex ".*"
+        crudini --set /etc/nova/nova-compute.conf pci report_in_placement True
+        # Enable live migration for GPU instances
+        crudini --set /etc/nova/nova.conf libvirt live_migration_with_native_tls True
+    fi
+fi
+
 if [ "$ARCH" = "aarch64" ] ; then
     if [ $OSVERSION -lt $OSTRAIN ]; then
 	crudini --set /etc/nova/nova-compute.conf libvirt cpu_mode custom
@@ -351,7 +424,14 @@ if [ "$ARCH" = "aarch64" ] ; then
 	patch -d / -p0 < $DIRNAME/etc/nova-train-aarch64-libvirt-bios-default.patch
     elif [ $OSVERSION -eq $OSUSSURI ]; then
 	patch -d / -p0 < $DIRNAME/etc/nova-ussuri-aarch64-libvirt-bios-default.patch
+    elif [ $OSVERSION -eq $OSCARACAL ]; then
+    patch -d / -p0 < $DIRNAME/etc/nova-caracal-aarch64-libvirt-bios-default.patch
+    elif [ $OSVERSION -eq $OSDALMATIAN ]; then
+    patch -d / -p0 < $DIRNAME/etc/nova-dalmatian-aarch64-libvirt-bios-default.patch
+    elif [ $OSVERSION -eq $OSEPOXY ]; then
+    patch -d / -p0 < $DIRNAME/etc/nova-epoxy-aarch64-libvirt-bios-default.patch
     fi
+    
 elif [ "$ARCH" = "ppc64le" ] ; then
     ppc64_cpu --smt=off
     if [ -e /etc/rc.local ]; then

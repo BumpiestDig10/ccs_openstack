@@ -108,18 +108,15 @@ fi
 #
 if [ -z "${DB_ROOT_PASS}" ]; then
     logtstart "database"
+    
+    # Add MariaDB 10.6 repository for Ubuntu 22.04 (required for latest OpenStack)
+    curl -LsS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | \
+    sudo bash -s -- --mariadb-server-version="mariadb-10.6"
 
-    # Use updated mariadb repos to handle alembic migrations in train
-    # that require mariadb 10.3; bionic version is 10.1 .
-    if [ $OSVERSION -ge $OSTRAIN -a "${DISTRIB_CODENAME}" = "bionic" ]; then
-	maybe_install_packages software-properties-common
-        apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc'
-	add-apt-repository -y 'deb [arch=amd64,arm64,ppc64el] https://mariadb.mirror.liquidtelecom.com/repo/10.3/ubuntu bionic main'
-	apt-get update
-    fi
+    # Install MariaDB packages
+    maybe_install_packages mariadb-server mariadb-client python3-pymysql
 
-    maybe_install_packages $DBDPACKAGE
-    maybe_install_packages mariadb-server
+    # Stop service for configuration
     service_stop mysql
     # Change the root password; secure the users/dbs.
     mysqld_safe --skip-grant-tables --skip-networking &
@@ -129,15 +126,27 @@ if [ -z "${DB_ROOT_PASS}" ]; then
     echo "use mysql; update user set password=PASSWORD(\"${DB_ROOT_PASS}\") where User='root'; delete from user where User=''; delete from user where User='root' and Host not in ('localhost', '127.0.0.1', '::1'); drop database test; delete from db where Db='test' or Db='test\\_%'; flush privileges;" | mysql -u root 
     # Shutdown our unprotected server
     mysqladmin --password=${DB_ROOT_PASS} shutdown
-    # Put it on the management network and set recommended settings
-    echo "[mysqld]" >> /etc/mysql/my.cnf
-    echo "bind-address = $MGMTIP" >> /etc/mysql/my.cnf
-    echo "default-storage-engine = innodb" >> /etc/mysql/my.cnf
-    echo "innodb_file_per_table" >> /etc/mysql/my.cnf
-    echo "collation-server = utf8_general_ci" >> /etc/mysql/my.cnf
-    echo "init-connect = 'SET NAMES utf8'" >> /etc/mysql/my.cnf
-    echo "character-set-server = utf8" >> /etc/mysql/my.cnf
-    echo "max_connections = 4096" >> /etc/mysql/my.cnf
+    # Configure MariaDB for OpenStack Antelope on Ubuntu 22.04
+    cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf << EOF
+[mysqld]
+bind-address = $MGMTIP
+default-storage-engine = innodb
+innodb_file_per_table = 1
+innodb_buffer_pool_size = 4096M
+innodb_buffer_pool_instances = 4
+innodb_flush_log_at_trx_commit = 2
+innodb_log_file_size = 512M
+innodb_thread_concurrency = 8
+innodb_lock_wait_timeout = 50
+max_connections = 8192
+collation-server = utf8mb4_general_ci
+character-set-server = utf8mb4
+init-connect = 'SET NAMES utf8mb4'
+transaction-isolation = READ-COMMITTED
+binlog_format = ROW
+expire_logs_days = 7
+max_allowed_packet = 256M
+EOF
     # Restart it!
     service_restart mysql
     service_enable mysql
@@ -208,42 +217,107 @@ fi
 #
 if [ -z "${RABBIT_PASS}" ]; then
     logtstart "rabbit"
-    maybe_install_packages rabbitmq-server
+    maybe_install_packages rabbitmq-server erlang-base erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+        erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+        erlang-runtime-tools erlang-snmp erlang-ssl \
+        erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl
 
+    # Configure RabbitMQ for OpenStack
+    cat > /etc/rabbitmq/rabbitmq.conf << EOF
+# Network Configuration
+listeners.tcp.default = 5672
+management.tcp.port = 15672
+management.tcp.ip = $MGMTIP
+
+# Security Settings
+loopback_users = none
+default_vhost = /
+default_user = guest
+default_pass = guest
+
+# Performance Tuning
+tcp_listen_options.backlog = 128
+tcp_listen_options.nodelay = true
+tcp_listen_options.keepalive = true
+vm_memory_high_watermark.relative = 0.7
+disk_free_limit.absolute = 50MB
+channel_max = 8192
+heartbeat = 60
+
+# Clustering
+cluster_partition_handling = pause_minority
+cluster_keepalive_interval = 10000
+
+# Management Plugin
+management.listener.port = 15672
+management.listener.ssl = false
+
+# Queue Settings
+queue_master_locator = min-masters
+EOF
+
+    # Add advanced configuration
+    cat > /etc/rabbitmq/advanced.config << EOF
+[
+  {rabbit, [
+    {tcp_listen_options, [
+        {keepalive, true},
+        {nodelay, true},
+        {linger, {true, 0}},
+        {exit_on_close, false}
+    ]},
+    {collect_statistics_interval, 30000}
+  ]}
+].
+EOF
+
+    # Enable required plugins
+    rabbitmq-plugins enable rabbitmq_management
+    rabbitmq-plugins enable rabbitmq_shovel
+    rabbitmq-plugins enable rabbitmq_shovel_management
+
+    # Setup systemd limits
+    mkdir -p /etc/systemd/system/rabbitmq-server.service.d
+    cat > /etc/systemd/system/rabbitmq-server.service.d/limits.conf << EOF
+[Service]
+LimitNOFILE=65536
+EOF
+
+    systemctl daemon-reload
     service_restart rabbitmq-server
     service_enable rabbitmq-server
-    rabbitmqctl start_app
-    while [ ! $? -eq 0 ]; do
-	sleep 1
-	rabbitmqctl start_app
+    
+    # Wait for RabbitMQ to be fully started
+    timeout=60
+    while [ $timeout -gt 0 ]; do
+        if rabbitmqctl status >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+        timeout=$((timeout - 1))
     done
-
-    if [ $OSVERSION -lt $OSNEWTON ]; then
-	cat <<EOF > /etc/rabbitmq/rabbitmq.config
-[
- {rabbit,
-  [
-   {loopback_users, []}
-  ]}
-]
-.
-EOF
+    
+    if [ $timeout -eq 0 ]; then
+        echo "Error: RabbitMQ failed to start within 60 seconds"
+        exit 1
     fi
 
-    if [ ${OSCODENAME} = "juno" ]; then
-	RABBIT_USER="guest"
-    else
-	RABBIT_USER="openstack"
-	rabbitmqctl add_vhost /
-    fi
+    # Set up OpenStack RabbitMQ user
+    RABBIT_USER="openstack"
     RABBIT_PASS=`$PSWDGEN`
-    RABBIT_URL="rabbit://${RABBIT_USER}:${RABBIT_PASS}@${CONTROLLER}"
-    rabbitmqctl change_password $RABBIT_USER $RABBIT_PASS
-    if [ ! $? -eq 0 ]; then
-	rabbitmqctl add_user ${RABBIT_USER} ${RABBIT_PASS}
-	rabbitmqctl set_permissions ${RABBIT_USER} ".*" ".*" ".*"
-    fi
-    # Save the passwd
+    RABBIT_URL="amqp://${RABBIT_USER}:${RABBIT_PASS}@${CONTROLLER}:5672//"
+
+    # Create OpenStack user and set permissions
+    rabbitmqctl add_user ${RABBIT_USER} ${RABBIT_PASS}
+    rabbitmqctl set_permissions ${RABBIT_USER} ".*" ".*" ".*"
+    rabbitmqctl set_user_tags ${RABBIT_USER} administrator
+    
+    # Delete default guest user for security
+    rabbitmqctl delete_user guest
+    
+    # Enable server-side connection tracking
+    rabbitmqctl set_vm_memory_high_watermark 0.7
+    rabbitmqctl set_disk_free_limit "50MB"
     echo "RABBIT_USER=\"${RABBIT_USER}\"" >> $SETTINGS
     echo "RABBIT_PASS=\"${RABBIT_PASS}\"" >> $SETTINGS
     echo "RABBIT_URL=\"${RABBIT_URL}\"" >> $SETTINGS
@@ -305,8 +379,8 @@ if [ -z "${MEMCACHE_DONE}" ]; then
 EOF
 
     if [ ${HAVE_SYSTEMD} -eq 1 ]; then
-	mkdir /etc/systemd/system/memcached.service.d
-	systemctl list-units | grep -q networking\.service
+		mkdir /etc/systemd/system/memcached.service.d
+		systemctl list-units | grep -q networking\.service
 	if [ $? -eq 0 ]; then
 	    cat <<EOF >/etc/systemd/system/memcached.service.d/local-ifup.conf
 [Unit]
@@ -383,27 +457,43 @@ EOF
 fi
 
 make_credential_files() {
-    if [ -e $OURDIR/admin-openrc-newcli.sh \
-	 -a -e $OURDIR/admin-openrc-oldcli.sh \
-	 -a -e $OURDIR/admin-openrc-oldcli.py \
-	 -a -e $OURDIR/admin-openrc-newcli.py \
-	 -a -e $OURDIR/admin-openrc.sh \
-	 -a -e $OURDIR/admin-openrc.py ]; then
-	return
+    # Check if credentials already exist
+    if [ -e $OURDIR/admin-openrc.sh ]; then
+        return
     fi
 
-    #
-    # Create the admin-openrc.{sh,py} files.
-    #
-    echo "export OS_TENANT_NAME=admin" > $OURDIR/admin-openrc-oldcli.sh
-    echo "export OS_USERNAME=${ADMIN_API}" >> $OURDIR/admin-openrc-oldcli.sh
-    echo "export OS_PASSWORD=${ADMIN_API_PASS}" >> $OURDIR/admin-openrc-oldcli.sh
-    echo "export OS_AUTH_URL=http://$CONTROLLER:${KADMINPORT}/v2.0" >> $OURDIR/admin-openrc-oldcli.sh
+    # Create admin OpenRC file
+    cat > $OURDIR/admin-openrc.sh << EOF
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=admin
+export OS_USERNAME=admin
+export OS_PASSWORD=${ADMIN_PASS}
+export OS_AUTH_URL=http://${CONTROLLER}:5000/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+export OS_VOLUME_API_VERSION=3
+export OS_COMPUTE_API_VERSION=2.0
+export OS_REGION_NAME=RegionOne
+export OS_INTERFACE=public
+export PS1='[\u@\h \W(keystone_admin)]\$ '
+EOF
 
-    echo "OS_TENANT_NAME=\"admin\"" > $OURDIR/admin-openrc-oldcli.py
-    echo "OS_USERNAME=\"${ADMIN_API}\"" >> $OURDIR/admin-openrc-oldcli.py
-    echo "OS_PASSWORD=\"${ADMIN_API_PASS}\"" >> $OURDIR/admin-openrc-oldcli.py
-    echo "OS_AUTH_URL=\"http://$CONTROLLER:${KADMINPORT}/v2.0\"" >> $OURDIR/admin-openrc-oldcli.py
+    # Create Python OpenRC files
+    cat > $OURDIR/admin-openrc.py << EOF
+OS_PROJECT_DOMAIN_NAME="Default"
+OS_USER_DOMAIN_NAME="Default"
+OS_PROJECT_NAME="admin"
+OS_USERNAME="admin"
+OS_PASSWORD="${ADMIN_PASS}"
+OS_AUTH_URL="http://${CONTROLLER}:5000/v3"
+OS_IDENTITY_API_VERSION=3
+OS_IMAGE_API_VERSION=2
+OS_VOLUME_API_VERSION=3
+OS_COMPUTE_API_VERSION="2.0"
+OS_REGION_NAME="RegionOne"
+OS_INTERFACE="public"
+EOF
     if [ "x$KEYSTONEAPIVERSION" = "x3" ]; then
 	echo "OS_IDENTITY_API_VERSION=3" >> $OURDIR/admin-openrc-oldcli.py
     else
@@ -510,28 +600,66 @@ export_credentials() {
 if [ -z "${KEYSTONE_DBPASS}" ]; then
     logtstart "keystone"
     KEYSTONE_DBPASS=`$PSWDGEN`
-    echo "create database keystone" | mysql -u root --password="$DB_ROOT_PASS"
-    echo "grant all privileges on keystone.* to 'keystone'@'localhost' identified by '$KEYSTONE_DBPASS'" | mysql -u root --password="$DB_ROOT_PASS"
-    echo "grant all privileges on keystone.* to 'keystone'@'%' identified by '$KEYSTONE_DBPASS'" | mysql -u root --password="$DB_ROOT_PASS"
+    
+    # Create database
+    echo "create database keystone character set utf8mb4 collate utf8mb4_general_ci;" | mysql -u root --password="$DB_ROOT_PASS"
+    echo "grant all privileges on keystone.* to 'keystone'@'localhost' identified by '$KEYSTONE_DBPASS';" | mysql -u root --password="$DB_ROOT_PASS"
+    echo "grant all privileges on keystone.* to 'keystone'@'%' identified by '$KEYSTONE_DBPASS';" | mysql -u root --password="$DB_ROOT_PASS"
+    
+    # Install Keystone packages
+    maybe_install_packages keystone python3-keystone python3-keystoneclient python3-keystonemiddleware \
+        apache2 libapache2-mod-wsgi-py3 memcached python3-memcache
+    # Configure Apache for Keystone
+    cat > /etc/apache2/sites-available/keystone.conf << EOF
+<VirtualHost *:5000>
+    WSGIDaemonProcess keystone-public processes=5 threads=1 user=keystone group=keystone display-name=%{GROUP}
+    WSGIProcessGroup keystone-public
+    WSGIScriptAlias / /usr/bin/keystone-wsgi-public
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
 
-    maybe_install_packages keystone ${PYPKGPREFIX}-keystoneclient
-    if [ $OSVERSION -ge $OSKILO -o $KEYSTONEUSEWSGI -eq 1 ]; then
-	maybe_install_packages apache2
-	if [ $ISPYTHON3 -eq 1 ]; then
-	    maybe_install_packages libapache2-mod-wsgi-py3
-	else
-	    maybe_install_packages libapache2-mod-wsgi
-	fi
-	a2enmod wsgi
-    fi
+    <IfVersion >= 2.4>
+        ErrorLogFormat "%{cu}t %M"
+    </IfVersion>
 
-    ADMIN_TOKEN=`$PSWDGEN`
+    ErrorLog /var/log/apache2/keystone.log
+    CustomLog /var/log/apache2/keystone_access.log combined
 
-    crudini --set /etc/keystone/keystone.conf DEFAULT admin_token "$ADMIN_TOKEN"
+    <Directory /usr/bin>
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+    # Enable modules and site
+    a2enmod wsgi
+    a2ensite keystone
+    
+    # Configure Keystone
     crudini --set /etc/keystone/keystone.conf database connection \
-	"${DBDSTRING}://keystone:${KEYSTONE_DBPASS}@$CONTROLLER/keystone"
-
+        "${DBDSTRING}://keystone:${KEYSTONE_DBPASS}@$CONTROLLER/keystone"
+    
+    crudini --set /etc/keystone/keystone.conf token provider fernet
+    crudini --set /etc/keystone/keystone.conf token expiration 86400
+    
+    # Cache configuration
+    crudini --set /etc/keystone/keystone.conf cache enabled true
+    crudini --set /etc/keystone/keystone.conf cache backend oslo_cache.memcache_pool
+    crudini --set /etc/keystone/keystone.conf cache memcache_servers ${CONTROLLER}:11211
+    
+    # Security settings
+    crudini --set /etc/keystone/keystone.conf security password_hash_algorithm bcrypt
+    crudini --set /etc/keystone/keystone.conf security password_hash_rounds 12
+    
+    # Set API version 
+    crudini --set /etc/keystone/keystone.conf DEFAULT compute_api_version 2.0
+    crudini --set /etc/keystone/keystone.conf DEFAULT volume_api_version 3
+    crudini --set /etc/keystone/keystone.conf DEFAULT image_api_version 2
+    
+    # Configure token settings
+    crudini --set /etc/keystone/keystone.conf token provider fernet
     crudini --set /etc/keystone/keystone.conf token expiration ${TOKENTIMEOUT}
+    crudini --set /etc/keystone/keystone.conf token allow_expired_window 172800
 
     if [ $OSVERSION -le $OSJUNO ]; then
 	crudini --set /etc/keystone/keystone.conf token provider \
@@ -588,14 +716,28 @@ if [ -z "${KEYSTONE_DBPASS}" ]; then
     crudini --set /etc/keystone/keystone.conf DEFAULT verbose ${VERBOSE_LOGGING}
     crudini --set /etc/keystone/keystone.conf DEFAULT debug ${DEBUG_LOGGING}
 
-    su -s /bin/sh -c "/usr/bin/keystone-manage db_sync" keystone
-
-    if [ $OSVERSION -ge $OSNEWTON ]; then
-	keystone-manage fernet_setup --keystone-user keystone \
-	    --keystone-group keystone
-	keystone-manage credential_setup --keystone-user keystone \
-	    --keystone-group keystone
-    fi
+    # Initialize Fernet key repositories
+    keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+    keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+    
+    # Configure memcached
+    cat >> /etc/memcached.conf << EOF
+-l ${MGMTIP}
+EOF
+    
+    # Initialize the database
+    su -s /bin/sh -c "keystone-manage db_sync" keystone
+    
+    # Bootstrap the Identity service
+    keystone-manage bootstrap --bootstrap-password ${ADMIN_PASS} \
+        --bootstrap-admin-url http://${CONTROLLER}:5000/v3/ \
+        --bootstrap-internal-url http://${CONTROLLER}:5000/v3/ \
+        --bootstrap-public-url http://${CONTROLLER}:5000/v3/ \
+        --bootstrap-region-id RegionOne
+    
+    # Restart services
+    systemctl restart memcached
+    systemctl restart apache2
 
     if [ $OSVERSION -eq $OSKILO -a $KEYSTONEUSEWSGI -eq 1 ]; then
 	cat <<EOF >/etc/apache2/sites-available/wsgi-keystone.conf
@@ -1194,9 +1336,9 @@ if [ -z "${NOVA_DBPASS}" ]; then
 	fi
     fi
 
+    # nova-consoleauth is removed in latest OpenStack
     maybe_install_packages nova-api nova-conductor \
-	nova-novncproxy nova-scheduler
-    maybe_install_packages nova-consoleauth ${PYPKGPREFIX}-novaclient
+	nova-novncproxy nova-scheduler ${PYPKGPREFIX}-novaclient
     if [ $OSVERSION -lt $OSQUEENS ]; then
 	maybe_install_packages nova-cert
     fi

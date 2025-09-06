@@ -34,8 +34,8 @@ pc = portal.Context()
 # Define *many* parameters; see the help docs in geni-lib to learn how to modify.
 #
 pc.defineParameter("release","OpenStack Release",
-                   portal.ParameterType.STRING,"zed",[("zed","Zed"),("yoga","Yoga"),("xena","Xena"),("wallaby","Wallaby"),("victoria","Victoria"),("ussuri","Ussuri"),("train","Train (deprecated)"),("stein","Stein (deprecated)"),("rocky","Rocky (deprecated)"),("queens","Queens (deprecated)"),("pike","Pike (deprecated)"),("ocata","Ocata (deprecated)"),("newton","Newton (deprecated)"),("mitaka","Mitaka (deprecated)"),("liberty","Liberty (deprecated)"),("kilo","Kilo (deprecated)"),("juno","Juno (deprecated)")],
-                   longDescription="We provide OpenStack Zed (Ubuntu 22.04), Xena, Wallaby, Victoria, Ussuri (Ubuntu 20.04, python3) (deprecated: Train, Stein (Ubuntu 18.04, python3), Rocky, Queens (Ubuntu 18.04, python2), Pike, Ocata, Newton, Mitaka (Ubuntu 16.04, python2), Liberty (Ubuntu 15.10, python2); Kilo (Ubuntu 15.04, python2); or Juno (Ubuntu 14.10, python2)).  OpenStack is installed from packages available on these distributions.")
+                   portal.ParameterType.STRING,"2023.1",[("2023.1","Antelope"),("zed","Zed")],
+                   longDescription="We provide OpenStack 2023.1 (Antelope) and Zed on Ubuntu 22.04 LTS (Jammy Jellyfish). OpenStack is installed from packages available in the Ubuntu Cloud Archive.")
 pc.defineParameter("computeNodeCount", "Number of compute nodes (at Site 1)",
                    portal.ParameterType.INTEGER, 1)
 pc.defineParameter("osNodeType", "Hardware Type",

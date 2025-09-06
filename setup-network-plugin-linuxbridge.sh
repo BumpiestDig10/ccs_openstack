@@ -28,6 +28,109 @@ if [ -f $LOCALSETTINGS ]; then
     . $LOCALSETTINGS
 fi
 
+# Configure kernel networking parameters
+cat <<EOF >> /etc/sysctl.conf
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-ip6tables=1
+net.ipv4.ip_forward=1
+EOF
+
+sysctl -p
+
+# Install base packages
+maybe_install_packages neutron-plugin-ml2 conntrack neutron-linuxbridge-agent 
+
+# Only the controller node runs neutron-server and needs the DB
+if [ "$HOSTNAME" = "$CONTROLLER" ]; then
+    # Configure neutron.conf for controller
+    crudini --set /etc/neutron/neutron.conf DEFAULT core_plugin ml2
+    crudini --set /etc/neutron/neutron.conf DEFAULT service_plugins router,metering,qos
+    crudini --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+    crudini --set /etc/neutron/neutron.conf DEFAULT transport_url $RABBIT_URL
+    crudini --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes true
+    crudini --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes true
+
+    # Configure database
+    crudini --set /etc/neutron/neutron.conf database connection \
+        "${DBDSTRING}://neutron:${NEUTRON_DBPASS}@${CONTROLLER}/neutron"
+    
+    # Configure keystone authentication
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken www_authenticate_uri http://${CONTROLLER}:5000
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken auth_url http://${CONTROLLER}:5000
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken memcached_servers ${CONTROLLER}:11211
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken auth_type password
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken project_domain_name default
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken user_domain_name default
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken project_name service
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken username neutron
+    crudini --set /etc/neutron/neutron.conf keystone_authtoken password ${NEUTRON_PASS}
+
+    # Configure nova notifications
+    crudini --set /etc/neutron/neutron.conf nova auth_url http://${CONTROLLER}:5000
+    crudini --set /etc/neutron/neutron.conf nova auth_type password
+    crudini --set /etc/neutron/neutron.conf nova project_domain_name default
+    crudini --set /etc/neutron/neutron.conf nova user_domain_name default
+    crudini --set /etc/neutron/neutron.conf nova region_name ${REGION}
+    crudini --set /etc/neutron/neutron.conf nova project_name service
+    crudini --set /etc/neutron/neutron.conf nova username nova
+    crudini --set /etc/neutron/neutron.conf nova password ${NOVA_PASS}
+fi
+
+# Configure ML2 plugin
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers flat,vlan,vxlan
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers linuxbridge
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 extension_drivers port_security,qos
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group true
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_ipset true
+
+# Configure ML2 network segment ranges
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks external
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vlan network_vlan_ranges external:1:4094
+crudini --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:16777215
+
+# Configure Linux Bridge agent
+crudini --set /etc/neutron/plugins/ml2/linuxbridge_agent.ini linux_bridge physical_interface_mappings external:$EXTERNAL_NETWORK_INTERFACE
+crudini --set /etc/neutron/plugins/ml2/linuxbridge_agent.ini vxlan enable_vxlan true
+crudini --set /etc/neutron/plugins/ml2/linuxbridge_agent.ini vxlan local_ip $MGMTIP
+crudini --set /etc/neutron/plugins/ml2/linuxbridge_agent.ini securitygroup enable_security_group true
+crudini --set /etc/neutron/plugins/ml2/linuxbridge_agent.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+
+# Configure layer 3 agent
+crudini --set /etc/neutron/l3_agent.ini DEFAULT interface_driver linuxbridge
+
+# Configure DHCP agent
+crudini --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver linuxbridge
+crudini --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
+crudini --set /etc/neutron/dhcp_agent.ini DEFAULT enable_isolated_metadata true
+
+# Configure metadata agent
+crudini --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_host $CONTROLLER
+crudini --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret $METADATA_SECRET
+
+# Restart services
+if [ "$HOSTNAME" = "$CONTROLLER" ]; then
+    service_restart neutron-server
+    service_enable neutron-server
+fi
+
+service_restart neutron-linuxbridge-agent
+service_enable neutron-linuxbridge-agent
+
+if [ "$HOSTNAME" = "$CONTROLLER" ]; then
+    service_restart neutron-l3-agent
+    service_enable neutron-l3-agent
+    service_restart neutron-dhcp-agent
+    service_enable neutron-dhcp-agent
+    service_restart neutron-metadata-agent
+    service_enable neutron-metadata-agent
+fi
+
+touch $OURDIR/setup-network-plugin-linuxbridge-done
+logtend "network-plugin-linuxbridge"
+
 # Grab the neutron configuration we computed in setup-lib.sh
 . $OURDIR/neutron.vars
 
@@ -41,11 +144,8 @@ EOF
 sysctl -p
 
 maybe_install_packages neutron-plugin-ml2 conntrack
-if [ $OSVERSION -ge $OSROCKY ]; then
-    maybe_install_packages neutron-linuxbridge-agent
-else
-    maybe_install_packages neutron-plugin-linuxbridge-agent
-fi
+# Use the new package name for the Linux bridge agent
+maybe_install_packages neutron-linuxbridge-agent
 
 # Only the controller node runs neutron-server and needs the DB.
 if [ "$HOSTNAME" != "$CONTROLLER" ]; then

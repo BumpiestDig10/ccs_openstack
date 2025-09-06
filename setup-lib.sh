@@ -70,31 +70,52 @@ COMPUTENODES=""
 BAREMETALNODES=""
 BLOCKNODES=""
 OBJECTNODES=""
+# Network configuration
 DATALAN="lan-1"
 MGMTLAN="lan-2"
 BLOCKLAN=""
 OBJECTLAN=""
+
+# Modern networking defaults
 DATATUNNELS=1
 DATAFLATLANS="lan-1"
 DATAVLANS=""
-DATAVXLANS=0
+DATAVXLANS=1  # Enable VXLAN by default for modern deployments
 DATAOTHERLANS=""
+
+# ML2 Plugin configuration
+ML2_MECHANISM_DRIVERS="openvswitch,l2population"
+ML2_TYPE_DRIVERS="flat,vlan,vxlan"
+ML2_TENANT_NETWORK_TYPES="vxlan"
+ML2_EXTENSION_DRIVERS="port_security,qos,dns"
+
+# OVS configuration
+OVS_BRIDGE_MAPPINGS="external:br-ex"
+OVS_TUNNEL_TYPES="vxlan"
+OVS_L2_POPULATION="True"
+OVS_ENABLE_DISTRIBUTED_ROUTING="True"
 USE_EXISTING_IPS=1
 DO_APT_INSTALL=1
-DO_APT_UPGRADE=0
-DO_APT_DIST_UPGRADE=0
+DO_APT_UPGRADE=1
+DO_APT_DIST_UPGRADE=1
 DO_APT_UPDATE=1
 UBUNTUMIRRORHOST=""
 UBUNTUMIRRORPATH=""
 ENABLE_NEW_SERIAL_SUPPORT=0
-DO_UBUNTU_CLOUDARCHIVE=0
+DO_UBUNTU_CLOUDARCHIVE=1
 DO_UBUNTU_CLOUDARCHIVE_STAGING=0
 BUILD_AARCH64_FROM_CORE=0
 DISABLE_SECURITY_GROUPS=0
 ENABLE_HOST_PASSTHROUGH=0
 DEFAULT_SECGROUP_ENABLE_SSH_ICMP=1
+# Logging configuration
 VERBOSE_LOGGING="False"
 DEBUG_LOGGING="False"
+USE_JOURNAL="True"
+LOG_FORMAT="%(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [%(request_id)s] %(message)s"
+LOG_DATE_FORMAT="%Y-%m-%d %H:%M:%S"
+LOG_ROTATION_DAYS="14"
+LOG_ROTATION_SIZE="50MB"
 SUPPORT_DYNAMIC_NODES=0
 KEYSTONEAPIVERSION=""
 TOKENTIMEOUT=14400
@@ -120,8 +141,8 @@ LINUXBRIDGE_STATIC=0
 # control net DNS server).  The local domain will also be searched prior
 # to the cluster's domain.
 USE_DESIGNATE_AS_RESOLVER=1
-# If set to 1, and if OSRELEASE >= OSNEWTON && < OSTRAIN, then setup Neutron LBaaS.
-USE_NEUTRON_LBAAS=1
+# LBaaS has been removed in latest OpenStack, using Octavia instead
+USE_NEUTRON_LBAAS=0
 # We are not currently using the ceilometer stats, and they do not work
 # as of Pike due to the switch to Gnocchi as the measurement DB.
 ENABLE_OPENSTACK_SLOTHD=0
@@ -142,14 +163,37 @@ SSLCERTTYPE="none"
 #
 # /root/setup/admin-openrc.sh contains the adminapi user, not admin!  We do it
 # this way because we need a real passwd so that various CLI tools and openstack
-# components have a real user/pass to auth as.
-#
+# API versions for OpenStack services
+KEYSTONE_API_VERSION="3"
+NOVA_API_VERSION="2.87"
+CINDER_API_VERSION="3"
+NEUTRON_API_VERSION="2.0"
+GLANCE_API_VERSION="2"
+HEAT_API_VERSION="1"
+
+# Authentication and identity settings
 ADMIN_API='adminapi'
 ADMIN_API_PASS=`$PSWDGEN`
 ADMIN='admin'
 ADMIN_PASS=''
-#ADMIN_PASS_HASH='$6$kOIVUcvsnrD/hETx$JahyKoIJf1EFNI2AWCtfzn3ZBoBfaJrRQkjC0kW6VkTwPI9K3TtEWTh/axrHP.e5mmcM96/bTQs1.e7HSKIk10'
 ADMIN_PASS_HASH=''
+
+# Domain configuration
+DEFAULT_DOMAIN="default"
+SERVICE_DOMAIN="service"
+
+# Security settings
+TOKEN_EXPIRATION="86400"
+FERNET_MAX_ACTIVE_KEYS="3"
+PASSWORD_HASH_ALGORITHM="bcrypt"
+PASSWORD_HASH_ROUNDS="12"
+
+# Caching configuration
+MEMCACHE_SERVERS="${CONTROLLER}:11211"
+MEMCACHE_MAX_MEMORY="1024"
+MEMCACHE_CONNECTIONS="8192"
+MEMCACHE_TIMEOUT="3600"
+MEMCACHE_SECRET=`$PSWDGEN`
 
 SWAPPER=`cat $BOOTDIR/swapper`
 
@@ -259,37 +303,18 @@ if [ $? -eq 0 ]; then
 fi
 
 ##
-## Figure out the system python version.
+## Set up Python 3 (required for Ubuntu 22.04 and OpenStack Antelope)
 ##
-python --version
-if [ ! $? -eq 0 ]; then
-    python3 --version
-    if [ $? -eq 0 ]; then
-	PYTHON=python3
-    else
-	are_packages_installed python3
-	success=`expr $? = 0`
-	# Keep trying again with updated cache forever;
-	# we must have python.
-	while [ ! $success -eq 0 ]; do
-	    do_apt_update
-	    apt-get $DPKGOPTS install $APTGETINSTALLOPTS python3
-	    success=$?
-	done
-	PYTHON=python3
-    fi
-else
-    PYTHON=python
-fi
-$PYTHON --version | grep -q "Python 3"
-if [ $? -eq 0 ]; then
-    PYVERS=3
-    PIP=pip3
-    PYTHONPKGPREFIX=python3
-else
-    PYVERS=2
-    PIP=pip
-    PYTHONPKGPREFIX=python
+PYTHON=python3
+PYVERS=3
+PIP=pip3
+PYTHONPKGPREFIX=python3
+
+# Ensure Python 3 and pip are installed
+are_packages_installed python3 python3-pip
+if [ ! $? -eq 1 ]; then
+    do_apt_update
+    apt-get $DPKGOPTS install $APTGETINSTALLOPTS python3 python3-pip python3-venv
 fi
 PYTHONBIN=`which $PYTHON`
 
@@ -423,58 +448,47 @@ if [ ! "$corh" = "$curh" ]; then
     hostname "$corh"
 fi
 
-# Check if our init is systemd
-dpkg-query -S /sbin/init | grep -q systemd
-HAVE_SYSTEMD=`expr $? = 0`
+# Check if our init is systemd (required for Ubuntu 22.04+)
+if [ -d "/run/systemd/system" ]; then
+    HAVE_SYSTEMD=1
+else
+    HAVE_SYSTEMD=0
+    echo "WARNING: systemd not detected. This script requires systemd (Ubuntu 22.04+)"
+    exit 1
+fi
 
 #
-# Figure out which OS/OpenStack this is.
+# OpenStack version constants
+# Only keeping recent and supported versions
 #
-OSJUNO=10
-OSKILO=11
-OSLIBERTY=12
-OSMITAKA=13
-OSNEWTON=14
-OSOCATA=15
-OSPIKE=16
-OSQUEENS=17
-OSROCKY=18
-OSSTEIN=19
-OSTRAIN=20
-OSUSSURI=21
-OSVICTORIA=22
-OSWALLABY=23
-OSXENA=24
-OSYOGA=25
-OSZED=26
-OSANTELOPE=27
-OSBOBCAT=28
+OSYOGA=25      # EOL: December 2023
+OSZED=26       # EOL: June 2024
+OSANTELOPE=27  # Current LTS, EOL: December 2026
+OSBOBCAT=28    # Next release
+OSCENTAUR=29   # Development
+OSCARACAL=29   # Development
+OSDALMATIAN=30 # Future
+OSEPOXY=31     # Future
+
 
 . /etc/lsb-release
 #
-# Allow a specific release to trump the image defaults, maybe.
+# Set OpenStack version based on release name
 #
 if [ ! "x$OSRELEASE" = "x" ]; then
     OSCODENAME="$OSRELEASE"
-    if [ $OSCODENAME = "juno" ]; then OSVERSION=$OSJUNO ; fi
-    if [ $OSCODENAME = "kilo" ]; then OSVERSION=$OSKILO ; fi
-    if [ $OSCODENAME = "liberty" ]; then OSVERSION=$OSLIBERTY ; fi
-    if [ $OSCODENAME = "mitaka" ]; then OSVERSION=$OSMITAKA ; fi
-    if [ $OSCODENAME = "newton" ]; then OSVERSION=$OSNEWTON ; fi
-    if [ $OSCODENAME = "ocata" ]; then OSVERSION=$OSOCATA ; fi
-    if [ $OSCODENAME = "pike" ]; then OSVERSION=$OSPIKE ; fi
-    if [ $OSCODENAME = "queens" ]; then OSVERSION=$OSQUEENS ; fi
-    if [ $OSCODENAME = "rocky" ]; then OSVERSION=$OSROCKY ; fi
-    if [ $OSCODENAME = "stein" ]; then OSVERSION=$OSSTEIN ; fi
-    if [ $OSCODENAME = "train" ]; then OSVERSION=$OSTRAIN ; fi
-    if [ $OSCODENAME = "ussuri" ]; then OSVERSION=$OSUSSURI ; fi
-    if [ $OSCODENAME = "victoria" ]; then OSVERSION=$OSVICTORIA ; fi
-    if [ $OSCODENAME = "wallaby" ]; then OSVERSION=$OSWALLABY ; fi
-    if [ $OSCODENAME = "xena" ]; then OSVERSION=$OSXENA ; fi
+    # Only support current and future versions
     if [ $OSCODENAME = "yoga" ]; then OSVERSION=$OSYOGA ; fi
     if [ $OSCODENAME = "zed" ]; then OSVERSION=$OSZED ; fi
     if [ $OSCODENAME = "antelope" ]; then OSVERSION=$OSANTELOPE ; fi
     if [ $OSCODENAME = "bobcat" ]; then OSVERSION=$OSBOBCAT ; fi
+    if [ $OSCODENAME = "caracal" ]; then OSVERSION=$OSCARACAL ; fi
+    
+    # If no valid version is set, default to Antelope (2023.1)
+    if [ "x$OSVERSION" = "x" ]; then
+        OSCODENAME="antelope"
+        OSVERSION=$OSANTELOPE
+    fi
 
     #
     # We only use cloudarchive for LTS images!
@@ -483,18 +497,14 @@ if [ ! "x$OSRELEASE" = "x" ]; then
     if [ $? -eq 0 ]; then
 	DO_UBUNTU_CLOUDARCHIVE=1
     fi
-elif [ ${DISTRIB_CODENAME} = "wily" ]; then
-    OSCODENAME="liberty"
-    OSVERSION=$OSLIBERTY
-elif [ ${DISTRIB_CODENAME} = "vivid" ]; then
-    OSCODENAME="kilo"
-    OSVERSION=$OSKILO
-elif [ ${DISTRIB_CODENAME} = "xenial" ]; then
-    OSCODENAME="mitaka"
-    OSVERSION=$OSMITAKA
+# Set default OpenStack version based on Ubuntu release
+elif [ "${DISTRIB_CODENAME}" = "jammy" ]; then
+    # Ubuntu 22.04 LTS (Jammy) defaults to Antelope
+    OSCODENAME="antelope"
+    OSVERSION=$OSANTELOPE
 else
-    OSCODENAME="juno"
-    OSVERSION=$OSJUNO
+    echo "Error: This script requires Ubuntu 22.04 LTS (Jammy Jellyfish)"
+    exit 1
 fi
 DISTRIB_MAJOR=`echo $DISTRIB_RELEASE | cut -d. -f1`
 
@@ -522,13 +532,10 @@ fi
 #
 # We started using Python 3 packages at Stein.
 #
-PYPKGPREFIX="python"
-ISPYTHON3=0
-PYTHONBINNAME="python"
-if [ $OSVERSION -ge $OSSTEIN ]; then
-    PYPKGPREFIX="python3"
-    ISPYTHON3=1
-    PYTHONBINNAME="python3"
+PYPKGPREFIX="python3"
+ISPYTHON3=1
+PYTHONBINNAME="python3"
+# Always use Python 3 with Ubuntu 22.04 and OpenStack Antelope
 
     #
     # If our openstack python libs will be python3, we also need
@@ -560,30 +567,16 @@ else
 fi
 
 #
-# Figure out if we got told to use keystone v2 or v3, or what our
-# default should be if not.
+# Keystone v2.0 API was removed in OpenStack 13.0.0 (Queens)
+# For Antelope, we only use v3
 #
-if [ "x$KEYSTONEAPIVERSION" = "x3" ]; then
-    # Let them force v3.
-    KAPISTR='v3'
-elif [ "$KEYSTONEAPIVERSION" != "2" -a $OSVERSION -ge $OSLIBERTY ]; then
-    # If they didn't force v2 or v3, if we're on Liberty or higher, make
-    # v3 the default
-    KAPISTR='v3'
-    KEYSTONEAPIVERSION=3
-else
-    # Otherwise, use version 2 by default (or choice)
-    KEYSTONEAPIVERSION=2
-    KAPISTR='v2.0'
-fi
+KEYSTONEAPIVERSION=3
+KAPISTR='v3'
 
 #
-# Figure out Nova API string.
+# Use Nova API v2.1 for current OpenStack
 #
-NAPISTR="v2"
-if [ $OSVERSION -ge $OSMITAKA ]; then
-    NAPISTR="v2.1"
-fi
+NAPISTR="v2.1"
 
 #
 # Figure out if we got told to use keystone wsgi or not, or what our
@@ -614,18 +607,37 @@ else
 fi
 
 #
-# Set the database package name and driver string.
+# Set the database configuration
 #
-if [ $OSVERSION -ge $OSUSSURI ]; then
-    DBDPACKAGE="${PYPKGPREFIX}-pymysql"
-    DBDSTRING="mysql+pymysql"
-elif [ $OSVERSION -ge $OSNEWTON ]; then
-    DBDPACKAGE="python-pymysql"
-    DBDSTRING="mysql+pymysql"
-else
-    DBDPACKAGE="python-mysqldb"
-    DBDSTRING="mysql"
-fi
+# All modern OpenStack versions use PyMySQL
+DBDPACKAGE="${PYPKGPREFIX}-pymysql"
+DBDSTRING="mysql+pymysql"
+
+# MariaDB configuration
+MARIADB_VERSION="10.6"
+DB_CHARSET="utf8mb4"
+DB_COLLATION="utf8mb4_general_ci"
+
+# Default database performance settings
+DB_MAX_CONNECTIONS="8192"
+DB_INNODB_BUFFER_POOL_SIZE="4096M"
+DB_INNODB_FILE_PER_TABLE="1"
+DB_INNODB_BUFFER_POOL_INSTANCES="4"
+DB_INNODB_THREAD_CONCURRENCY="8"
+DB_INNODB_FLUSH_METHOD="O_DIRECT"
+DB_INNODB_LOG_FILE_SIZE="512M"
+
+# RabbitMQ configuration
+RABBITMQ_VERSION="3.9"
+RABBITMQ_NODE_PORT="5672"
+RABBITMQ_MANAGEMENT_PORT="15672"
+RABBITMQ_MAX_CHANNELS="8192"
+RABBITMQ_VM_MEMORY_HIGH_WATERMARK="0.7"
+RABBITMQ_DISK_FREE_LIMIT="50MB"
+RABBITMQ_CLUSTER_PARTITION_HANDLING="pause_minority"
+RABBITMQ_NET_TICKTIME="60"
+RABBITMQ_HEARTBEAT="60"
+RABBITMQ_TCP_LISTEN_OPTIONS='{"backlog": 128, "nodelay": true, "keepalive": true}'
 
 SWAPPER_EMAIL=`geni-get -s boss slice_email`
 
@@ -646,11 +658,11 @@ if [ ! -f $TOPOMAP -o $UPDATING -ne 0 ]; then
 
     # First try via manifest; fall back to tmcc if necessary (although
     # that will break multisite exps with >1 second cluster node(s)).
-    python2 $DIRNAME/manifest-to-topomap.py $OURDIR/manifests.0.xml > $TOPOMAP
+    python3 $DIRNAME/manifest-to-topomap.py $OURDIR/manifests.0.xml > $TOPOMAP
     if [ ! $? -eq 0 ]; then
-	echo "ERROR: could not extract topomap from manifest; aborting to tmcc"
-	rm -f $TOPOMAP
-	$TMCC topomap | gunzip > $TOPOMAP
+        echo "ERROR: could not extract topomap from manifest; aborting to tmcc"
+        rm -f $TOPOMAP
+        $TMCC topomap | gunzip > $TOPOMAP
     fi
 
     # Filter out blockstore nodes
@@ -861,18 +873,20 @@ if [ ! -f $OURDIR/apt-updated -a "${DO_APT_UPDATE}" = "1" ]; then
 fi
 
 if [ ! -f $OURDIR/cloudarchive-added -a "${DO_UBUNTU_CLOUDARCHIVE}" = "1" ]; then
-    #if [ "${DISTRIB_CODENAME}" = "trusty" ] ; then
-    #	$APTGETINSTALL install -y ubuntu-cloud-keyring
-    #	echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "${DISTRIB_CODENAME}-updates/${OSCODENAME} main" > /etc/apt/sources.list.d/cloudarchive-${OSCODENAME}.list
-    #	apt-get update
-    #elif [ "${DISTRIB_CODENAME}" = "xenial" ] ; then
-	maybe_install_packages software-properties-common
-	# Disable unattended upgrades!
-	rm -fv /etc/apt/apt.conf.d/*unattended-upgrades
-	add-apt-repository -y cloud-archive:$OSRELEASE
-	if [ "${DO_UBUNTU_CLOUDARCHIVE_STAGING}" = "1" ]; then
-	    add-apt-repository -y cloud-archive:${OSRELEASE}-proposed
-	fi
+    maybe_install_packages software-properties-common
+    # Disable unattended upgrades!
+    rm -fv /etc/apt/apt.conf.d/*unattended-upgrades
+
+    # Handle special case: Antelope is default on Ubuntu 22.04 LTS
+    if [ "${DISTRIB_CODENAME}" = "jammy" -a "${OSRELEASE}" = "antelope" ]; then
+        echo "OpenStack Antelope is available by default on Ubuntu 22.04 LTS - skipping cloud archive"
+    else
+	    add-apt-repository -y cloud-archive:$OSRELEASE
+	    if [ "${DO_UBUNTU_CLOUDARCHIVE_STAGING}" = "1" ]; then
+	        add-apt-repository -y cloud-archive:${OSRELEASE}-proposed
+	    fi
+    fi
+
 	apt-get update
     #fi
 
