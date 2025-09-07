@@ -544,16 +544,15 @@ PYTHONBINNAME="python3"
     # library.  And we don't know that we need that until here, unlike
     # above where we may have installed the v2 python-cryptography.
     #
-    maybe_install_packages ${PYTHONBINNAME}-cryptography
+maybe_install_packages ${PYTHONBINNAME}-cryptography
     # Keep trying again with updated cache forever;
     # we must have this package.
-    success=$?
-    while [ ! $success -eq 0 ]; do
+success=$?
+while [ ! $success -eq 0 ]; do
 	do_apt_update
 	maybe_install_packages ${PYTHONBINNAME}-cryptography
 	success=$?
-    done
-fi
+done
 
 #
 # See which keystone port has the admin capabilities.  This changed in

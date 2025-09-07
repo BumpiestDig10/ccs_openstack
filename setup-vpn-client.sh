@@ -37,7 +37,13 @@ persist-tun
 ca ca.crt
 cert $HOSTNAME.crt
 key $HOSTNAME.key
-ns-cert-type server
+remote-cert-tls server
+auth-user-pass
+auth-nocache
+verify-client-cert require
+tls-auth ta.key 1
+cipher AES-256-CBC
+auth SHA256
 comp-lzo
 verb 3
 EOF

@@ -27,6 +27,25 @@ if [ -f $SETTINGS ]; then
     . $SETTINGS
 fi
 
+# Create necessary log directories
+log_dirs=(
+    "/var/log/nova"
+    "/var/log/neutron"
+    "/var/log/glance"
+    "/var/log/keystone"
+    "/var/log/cinder"
+    "/var/log/mysql"
+)
+
+echo "Creating log directories..."
+for dir in "${log_dirs[@]}"; do
+    mkdir -p $dir
+    chmod 750 $dir
+    service_name=$(basename $dir)
+    chown ${service_name}:${service_name} $dir
+    echo "Created $dir"
+done
+
 #
 # openstack CLI commands seem flakey sometimes on Kilo and Liberty.
 # Don't know if it's WSGI, mysql dropping connections, an NTP
