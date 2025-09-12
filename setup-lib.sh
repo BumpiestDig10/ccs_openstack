@@ -303,7 +303,7 @@ if [ $? -eq 0 ]; then
 fi
 
 ##
-## Set up Python 3 (required for Ubuntu 22.04 and OpenStack Antelope)
+## Set up Python 3 (required for Ubuntu 24.04 and OpenStack Caracal)
 ##
 PYTHON=python3
 PYVERS=3
@@ -498,12 +498,12 @@ if [ ! "x$OSRELEASE" = "x" ]; then
 	DO_UBUNTU_CLOUDARCHIVE=1
     fi
 # Set default OpenStack version based on Ubuntu release
-elif [ "${DISTRIB_CODENAME}" = "jammy" ]; then
-    # Ubuntu 22.04 LTS (Jammy) defaults to Antelope
-    OSCODENAME="antelope"
-    OSVERSION=$OSANTELOPE
+elif [ "${DISTRIB_CODENAME}" = "noble" ]; then
+    # Ubuntu 24.04 LTS (Noble Numbat) defaults to Caracal
+    OSCODENAME="caracal"
+    OSVERSION=$OSCARACAL
 else
-    echo "Error: This script requires Ubuntu 22.04 LTS (Jammy Jellyfish)"
+    echo "Error: This script requires Ubuntu 24.04 LTS (Noble Numbat)"
     exit 1
 fi
 DISTRIB_MAJOR=`echo $DISTRIB_RELEASE | cut -d. -f1`

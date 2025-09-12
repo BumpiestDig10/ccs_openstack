@@ -1,3 +1,3 @@
 These are a collection of scripts that install and configure
-OpenStack 2023.1 (Antelope) on Ubuntu 22.04 LTS (Jammy Jellyfish), within an Emulab/Apt/Cloudlab
+OpenStack 2024.1 (Caracal) on Ubuntu 24.04 LTS (Noble Numbat), within an Emulab/Apt/Cloudlab
 testbed experiment.

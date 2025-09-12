@@ -28,9 +28,9 @@ from argparse import Namespace
 
 helper = None
 
-# Don't want this as a param yet
-TBURL = "http://www.emulab.net/downloads/openstack-setup-v17-johnsond.tar.gz"
-TBCMD = "sudo mkdir -p /root/setup && sudo -H /tmp/setup/setup-driver.sh 2>&1 | sudo tee /root/setup/setup-driver.log"
+# Use local setup scripts instead of downloading
+TBURL = None  # No longer downloading external scripts
+TBCMD = "sudo mkdir -p /root/setup && sudo -H /root/setup/setup-driver.sh 2>&1 | sudo tee /root/setup/setup-driver.log"
 TBCMD_ADDNODE = "sudo mkdir -p /root/setup && sudo -H /tmp/setup/setup-driver-add-dyn-node.sh 2>&1 | sudo tee /root/setup/setup-driver.log"
 TBCMD_DELNODE = "sudo -H /tmp/setup/setup-controller-delete-nodes.sh %s 2>&1 | sudo tee -a /root/setup/setup-delete-nodes.log"
 TBPATH = "/tmp"
@@ -133,8 +133,8 @@ class OSDynSliceManagerHelper(protogeniclientlib.DynSliceManagerHelper,
         # learn how to modify.
         #
         self.pc.defineParameter("release","OpenStack Release",
-                           portal.ParameterType.STRING,"antelope",[("antelope","Antelope"),("zed","Zed")],
-                           longDescription="We provide OpenStack Antelope or Zed on Ubuntu 22.04 LTS. All installations use Ubuntu 22.04 LTS as the base operating system, with OpenStack packages from the Ubuntu Cloud Archive.")
+                           portal.ParameterType.STRING,"caracal",[("caracal","Caracal")],
+                           longDescription="We provide OpenStack Caracal on Ubuntu 24.04 LTS. All installations use Ubuntu 24.04 LTS as the base operating system, with OpenStack packages from the Ubuntu Cloud Archive.")
         self.pc.defineParameter("computeNodeCount", "Number of compute nodes (at Site 1)",
                            portal.ParameterType.INTEGER, 1)
         self.pc.defineParameter("publicIPCount", "Number of public IP addresses",

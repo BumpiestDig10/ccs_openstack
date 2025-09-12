@@ -28,23 +28,38 @@ if [ -f $SETTINGS ]; then
 fi
 
 # Create necessary log directories
-log_dirs=(
-    "/var/log/nova"
-    "/var/log/neutron"
-    "/var/log/glance"
-    "/var/log/keystone"
-    "/var/log/cinder"
-    "/var/log/mysql"
-)
-
 echo "Creating log directories..."
-for dir in "${log_dirs[@]}"; do
-    mkdir -p $dir
-    chmod 750 $dir
-    service_name=$(basename $dir)
-    chown ${service_name}:${service_name} $dir
-    echo "Created $dir"
-done
+
+# Create and set permissions for each log directory
+mkdir -p /var/log/nova
+chmod 750 /var/log/nova
+chown nova:nova /var/log/nova 2>/dev/null || true
+echo "Created /var/log/nova"
+
+mkdir -p /var/log/neutron
+chmod 750 /var/log/neutron
+chown neutron:neutron /var/log/neutron 2>/dev/null || true
+echo "Created /var/log/neutron"
+
+mkdir -p /var/log/glance
+chmod 750 /var/log/glance
+chown glance:glance /var/log/glance 2>/dev/null || true
+echo "Created /var/log/glance"
+
+mkdir -p /var/log/keystone
+chmod 750 /var/log/keystone
+chown keystone:keystone /var/log/keystone 2>/dev/null || true
+echo "Created /var/log/keystone"
+
+mkdir -p /var/log/cinder
+chmod 750 /var/log/cinder
+chown cinder:cinder /var/log/cinder 2>/dev/null || true
+echo "Created /var/log/cinder"
+
+mkdir -p /var/log/mysql
+chmod 750 /var/log/mysql
+chown mysql:mysql /var/log/mysql 2>/dev/null || true
+echo "Created /var/log/mysql"
 
 #
 # openstack CLI commands seem flakey sometimes on Kilo and Liberty.
@@ -128,9 +143,9 @@ fi
 if [ -z "${DB_ROOT_PASS}" ]; then
     logtstart "database"
     
-    # Add MariaDB 10.6 repository for Ubuntu 22.04 (required for latest OpenStack)
+    # Add MariaDB 10.11 repository for Ubuntu 24.04 (required for latest OpenStack)
     curl -LsS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | \
-    sudo bash -s -- --mariadb-server-version="mariadb-10.6"
+    sudo bash -s -- --mariadb-server-version="mariadb-10.11"
 
     # Install MariaDB packages
     maybe_install_packages mariadb-server mariadb-client python3-pymysql
@@ -145,7 +160,7 @@ if [ -z "${DB_ROOT_PASS}" ]; then
     echo "use mysql; update user set password=PASSWORD(\"${DB_ROOT_PASS}\") where User='root'; delete from user where User=''; delete from user where User='root' and Host not in ('localhost', '127.0.0.1', '::1'); drop database test; delete from db where Db='test' or Db='test\\_%'; flush privileges;" | mysql -u root 
     # Shutdown our unprotected server
     mysqladmin --password=${DB_ROOT_PASS} shutdown
-    # Configure MariaDB for OpenStack Antelope on Ubuntu 22.04
+    # Configure MariaDB for OpenStack Caracal on Ubuntu 24.04
     cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf << EOF
 [mysqld]
 bind-address = $MGMTIP

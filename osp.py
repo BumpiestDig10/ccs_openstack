@@ -35,7 +35,7 @@ pc = portal.Context()
 #
 pc.defineParameter("release","OpenStack Release",
                    portal.ParameterType.STRING,"antelope",[("antelope","Antelope"),("zed","Zed")],
-                   longDescription="We provide OpenStack Antelope or Zed on Ubuntu 22.04 LTS. OpenStack is installed from packages available through the Ubuntu Cloud Archive.")
+                   longDescription="We provide OpenStack Caracal on Ubuntu 24.04 LTS. OpenStack is installed from packages available through the Ubuntu Cloud Archive.")
 pc.defineParameter("computeNodeCount", "Number of compute nodes (at Site 1)",
                    portal.ParameterType.INTEGER, 1)
 pc.defineParameter("osNodeType", "Hardware Type",
@@ -627,7 +627,7 @@ doAptUpdate = params.doAptUpdate
 
 #
 # Construct the disk image URNs we're going to set the various nodes to load.
-# Using Ubuntu 22.04 for all releases as base image
+# Using Ubuntu 24.04 for all releases as base image
 #
 image_project = 'emulab-ops'
 image_urn = 'emulab.net'
