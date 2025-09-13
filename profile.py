@@ -38,7 +38,7 @@ pc.defineParameter("controller_count", "Number of Controller Nodes",
                   longDescription="Number of OpenStack controller nodes (1-3)")
 
 pc.defineParameter("compute_count", "Number of Compute Nodes",
-                  portal.ParameterType.INTEGER, 2, 
+                  portal.ParameterType.INTEGER, 1, 
                   longDescription="Number of OpenStack compute nodes (1-10)")
 
 pc.defineParameter("storage_count", "Number of Storage Nodes",
