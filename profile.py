@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 """
 OpenStack Epoxy 2025.1 on Ubuntu 24.04 LTS - CloudLab Profile
@@ -97,21 +97,25 @@ data_lan.best_effort = True
 # Create controller nodes
 controllers = []
 for i in range(params.controller_count):
-    node = request.RawPC(f"controller-{i+1}")
+    node_name = "controller-{}".format(i+1)
+    node = request.RawPC(node_name)
     node.hardware_type = params.node_type
     node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD"
     
     # Management interface
-    mgmt_iface = node.addInterface(f"mgmt-{i}")
+    mgmt_iface_name = "mgmt-{}".format(i)
+    mgmt_iface = node.addInterface(mgmt_iface_name)
     mgmt_lan.addInterface(mgmt_iface)
     
     # Data interface  
-    data_iface = node.addInterface(f"data-{i}")
+    data_iface_name = "data-{}".format(i)
+    data_iface = node.addInterface(data_iface_name)
     data_lan.addInterface(data_iface)
     
     # Add extra storage
-    bs = node.Blockstore(f"controller-{i+1}-storage", "/opt/openstack")
-    bs.size = f"{params.storage_size_gb}GB"
+    storage_name = "{}-storage".format(node_name)
+    bs = node.Blockstore(storage_name, "/opt/openstack")
+    bs.size = "{}GB".format(params.storage_size_gb)
     
     # Install scripts
     node.addService(pg.Execute(shell="bash", 
@@ -122,21 +126,25 @@ for i in range(params.controller_count):
 # Create compute nodes
 computes = []
 for i in range(params.compute_count):
-    node = request.RawPC(f"compute-{i+1}")
+    node_name = "compute-{}".format(i+1)
+    node = request.RawPC(node_name)
     node.hardware_type = params.node_type
     node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD"
     
     # Management interface
-    mgmt_iface = node.addInterface(f"mgmt-{i}")
+    mgmt_iface_name = "mgmt-{}".format(i)
+    mgmt_iface = node.addInterface(mgmt_iface_name)
     mgmt_lan.addInterface(mgmt_iface)
     
     # Data interface
-    data_iface = node.addInterface(f"data-{i}")
+    data_iface_name = "data-{}".format(i)
+    data_iface = node.addInterface(data_iface_name)
     data_lan.addInterface(data_iface)
     
     # Add storage for VMs
-    bs = node.Blockstore(f"compute-{i+1}-storage", "/var/lib/nova")
-    bs.size = f"{params.storage_size_gb * 2}GB"  # Double size for VM storage
+    storage_name = "{}-storage".format(node_name)
+    bs = node.Blockstore(storage_name, "/var/lib/nova")
+    bs.size = "{}GB".format(params.storage_size_gb * 2)  # Double size for VM storage
     
     # Install scripts
     node.addService(pg.Execute(shell="bash",
@@ -148,18 +156,22 @@ for i in range(params.compute_count):
 if params.storage_count > 0:
     storage_nodes = []
     for i in range(params.storage_count):
-        node = request.RawPC(f"storage-{i+1}")
+        node_name = "storage-{}".format(i+1)
+        node = request.RawPC(node_name)
         node.hardware_type = params.node_type  
         node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU24-64-STD"
         
         # Management interface
-        mgmt_iface = node.addInterface(f"mgmt-{i}")
+        mgmt_iface_name = "mgmt-{}".format(i)
+        mgmt_iface = node.addInterface(mgmt_iface_name)
         mgmt_lan.addInterface(mgmt_iface)
         
         # Multiple storage devices for Cinder and Manila
         for j in range(3):  # 3 storage devices per node
-            bs = node.Blockstore(f"storage-{i+1}-disk-{j+1}", f"/dev/disk{j+1}")
-            bs.size = f"{params.storage_size_gb}GB"
+            storage_name = "{}-disk-{}".format(node_name, j+1)
+            mount_point = "/dev/disk{}".format(j+1)
+            bs = node.Blockstore(storage_name, mount_point)
+            bs.size = "{}GB".format(params.storage_size_gb)
         
         # Install scripts
         node.addService(pg.Execute(shell="bash",
@@ -168,18 +180,31 @@ if params.storage_count > 0:
         storage_nodes.append(node)
 
 # Set up configuration parameters that will be available to scripts
-request.addService(pg.Execute(shell="bash", command=f"""
-cat > /local/repository/config.env << EOF
-export OS_USERNAME='{params.os_username}'
-export OS_PASSWORD='{params.os_password}'
-export TENANT_NETWORK_TYPE='{params.tenant_network_type}'
-export STORAGE_SIZE_GB='{params.storage_size_gb}'
-export ENABLE_MANILA='{params.enable_manila}'
-export CONTROLLER_COUNT='{params.controller_count}'
-export COMPUTE_COUNT='{params.compute_count}'
-export STORAGE_COUNT='{params.storage_count}'
+config_command = """
+cat > /local/repository/config.env << 'EOF'
+export OS_USERNAME='{}'
+export OS_PASSWORD='{}'
+export TENANT_NETWORK_TYPE='{}'
+export STORAGE_SIZE_GB='{}'
+export ENABLE_MANILA='{}'
+export CONTROLLER_COUNT='{}'
+export COMPUTE_COUNT='{}'
+export STORAGE_COUNT='{}'
 EOF
-"""))
+""".format(
+    params.os_username,
+    params.os_password, 
+    params.tenant_network_type,
+    params.storage_size_gb,
+    str(params.enable_manila),
+    params.controller_count,
+    params.compute_count,
+    params.storage_count
+)
+
+# Add the configuration service to the first controller node
+if controllers:
+    controllers[0].addService(pg.Execute(shell="bash", command=config_command))
 
 # Print the RSpec to the enclosing page
 pc.printRequestRSpec(request)
