@@ -50,11 +50,11 @@ pc.defineParameter("node_type", "Hardware Type",
                   longDescription="Hardware type for all nodes")
 
 pc.defineParameter("os_username", "OpenStack Username", 
-                  portal.ParameterType.STRING, "",
+                  portal.ParameterType.STRING, "user",
                   longDescription="Custom username for OpenStack authentication (required)")
 
 pc.defineParameter("os_password", "OpenStack Password",
-                  portal.ParameterType.STRING, "",
+                  portal.ParameterType.STRING, "password",
                   longDescription="Custom password for OpenStack authentication (required)")
 
 pc.defineParameter("tenant_network_type", "Tenant Network Type",
