@@ -1,12 +1,6 @@
 # profile.py: A geni-lib script to deploy a multi-node
 # OpenStack + Kubernetes environment on CloudLab.
 
-""" Simple multi-node OpenStack + Kubernetes deployment using Ubuntu 24.04.
-Kubernetes is deployed using OpenStack Magnum.
-This profile provisions one controller node and a user-defined number of compute nodes.
-Default Magnum scripts and settings are used for the deployment.
-"""
-
 #!/usr/bin/env python
 
 # Import the necessary geni-lib libraries.
@@ -119,7 +113,12 @@ for i in range(params.computeNodeCount):
 # The 'instructions' text is displayed on the experiment page after the user
 # has created an experiment using the profile. Markdown is supported.
 
-instructions = """
+""" Simple multi-node OpenStack + Kubernetes deployment using Ubuntu 24.04.
+Kubernetes is deployed using OpenStack Magnum.
+This profile provisions one controller node and a user-defined number of compute nodes.
+Default Magnum scripts and settings are used for the deployment.
+
+Instructions:
 ### Basic Instructions
 
 **PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
