@@ -10,6 +10,9 @@ exec > >(tee -a ${LOG_FILE}) 2>&1
 
 echo "Starting OpenStack Installation via DevStack..."
 
+
+sudo su
+
 # --- System Preparation ---
 # Update package lists and install git.
 apt-get update
@@ -22,21 +25,21 @@ git clone https://opendev.org/openstack/devstack /opt/devstack
 # Create a non-root user 'stack' for DevStack to run as.
 /opt/devstack/tools/create-stack-user.sh
 
-ADMIN_PASS=${1:-"password"}
+adminPassword=${1:-"password"}
 
 # Create the local.conf file. This is the primary configuration file for DevStack.
 # It specifies which services to enable, sets passwords, and configures networking.
 cat <<EOF > /opt/devstack/local.conf
 [[local|localrc]]
 # --- Passwords ---
-ADMIN_PASSWORD=\$ADMIN_PASS
+ADMIN_PASSWORD=$adminPassword
 DATABASE_PASSWORD=\$ADMIN_PASSWORD
 RABBIT_PASSWORD=\$ADMIN_PASSWORD
 SERVICE_PASSWORD=\$ADMIN_PASSWORD
 
 # --- Networking ---
-# Use the primary IP of this node. Assumes eth0 is the experiment interface.
-HOST_IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+# Use the primary IP of this node. Assumes eno1 is the experiment interface.
+HOST_IP=$(ip -4 addr show eno1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 FLOATING_RANGE=192.168.100.0/24
 PUBLIC_NETWORK_GATEWAY=192.168.100.1
 
@@ -74,9 +77,14 @@ EOF
 # Transfer ownership of the devstack directory to the 'stack' user.
 chown -R stack:stack /opt/devstack
 
+sudo su - stack
+
+
 # --- Run DevStack ---
 # Execute the main installation script as the 'stack' user.
 # This process will take a significant amount of time (20-40 minutes).
-su stack -c "/opt/devstack/stack.sh"
+/opt/devstack/stack.sh
 
 echo "OpenStack Installation Complete."
+
+exit
