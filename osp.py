@@ -177,7 +177,7 @@ $ openstack stack list
 
 # Set the instructions to be displayed on the experiment page.
 tour = ig.Tour()
-tour.Description = (ig.Tour.MARKDOWN, description)
+# tour.Description = (ig.Tour.MARKDOWN, description)
 tour.Instructions(ig.Tour.MARKDOWN,instructions)
 request.addTour(tour)
 
