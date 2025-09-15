@@ -3,10 +3,6 @@
 
 #!/usr/bin/env python
 
-'''
-This profile provisions a multi-node OpenStack Magnum Test on CloudLab.
-'''
-
 # Import the necessary geni-lib libraries.
 # geni.portal is used for defining user-configurable parameters.
 # geni.rspec.pg is for defining the resources in the ProtoGENI RSpec format.
@@ -49,7 +45,7 @@ pc.defineParameter(
     "computeNodeCount", "Number of Compute Nodes",
     portal.ParameterType.INTEGER,
     2,
-    longDescription="The number of OpenStack compute nodes to provision. Total number of nodes will be n+1 (including controller node)."
+    longDescription="The number of OpenStack compute nodes to provision. Total number of nodes will be n+1 (including controller node). Recommended: 2 or more. Try increasing this if Kubernetes Cluster creation fails due to insufficient resources."
 )
 
 # Parameters for OpenStack authentication.
@@ -58,15 +54,15 @@ pc.defineParameter(
 pc.defineParameter(
     "os_username", "OpenStack Username", 
     portal.ParameterType.STRING, 
-    "user",
-    longDescription="Custom username for OpenStack authentication (required). Defaulting to 'user'."
+    "nevilleLongbottom",
+    longDescription="Custom username for OpenStack authentication (required). Defaulting to 'nevilleLongbottom'."
 )
 
 pc.defineParameter(
     "os_password", "OpenStack Password",
     portal.ParameterType.STRING,
-    "password",
-    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'password'."
+    "anythingOffTheTrolley?",
+    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'anythingOffTheTrolley?'."  # TODO Check if this affects dashboard credentials, my guess - it doesn't.
 )
 
 # Retrieve the bound parameters from the portal context.
@@ -120,33 +116,44 @@ for i in range(params.computeNodeCount):
 instructions = """
 ### Basic Instructions
 
-PATIENCE IS KEY! The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
+**PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
 - While the experiment nodes are being provisioned, you can monitor the `logs` on the project page.
 - When the nodes start booting, you can inspect their status either in `Topology View` or `List View`.
 - Once a node is booted and it's 'Status' column shows 'ready', you can click on the settings gear icon on the right side of the experiment page to open a shell to the node. Here, you can monitor the installation progress by viewing log files or by inspecting running services.
 
-Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit [the OpenStack Dashboard](http://{host-controller}/dashboard) in your browser.
+Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
+Default dashboard credentials are:
+1. `username`: admin , `password`: password
+2. `username`: demo , `password`: password
 
-#### OpenStack Login Credentials:
-Click on the `Binding Params` tab on the experiment page to see the OpenStack login credentials you specified when instantiating the profile.
+> **OpenStack Login Credentials**
+> Click on the `Bindings` tab on the experiment page to see the OpenStack login credentials you specified when instantiating the profile.
 
-### Steps to perform every time you start the experiment:
+### Some commands to run on the controller node
+
 Click on the settings gear icon on the right side of the experiment page to open a shell to the controller node.
+
+#### Run every time you open a new shell
 ```bash
-source /opt/devstack/openrc admin admin
-    
-openstack keypair create mykey > ~/.ssh/mykey.pem   # Create a keypair for use with Kubernetes nodes.
-chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
-openstack keypair list	# To Confirm the keypair was created.
-
-openstack --help
-openstack coe cluster template list # This shows a list of custom K8s templates. Note the UUID of the required template.
-
-openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 2 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
-watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process. Press Ctrl+C to exit watch.
+$ source /opt/devstack/openrc admin admin
 ```
 
-### Resources:
+#### Create Keypair and Deploy a Kubernetes Cluster
+```bash
+$ openstack keypair create mykey > ~/.ssh/mykey.pem   # Create a keypair for use with Kubernetes nodes.
+$ chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
+$ openstack keypair list	# To Confirm the keypair was created.
+
+$ openstack [option] --help
+$ openstack coe cluster template list # This shows a list of custom K8s templates. Note the UUID of the required template.
+
+$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 2 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
+$ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process. Press Ctrl+C to exit watch.
+
+$ openstack stack list
+```
+
+### Resources
 - [CloudLab Documentation](https://docs.cloudlab.us/)
 - [OpenStack Documentation](https://docs.openstack.org/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/home/)
@@ -162,8 +169,18 @@ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster c
 - [Manila Documentation](https://docs.openstack.org/manila/latest/)
 """
 
+# === Description ===
+# Set the description to be displayed on the profile selection page.
+description = """
+Simple multi-node OpenStack + Kubernetes deployment using Ubuntu 24.04.
+Kubernetes is deployed using OpenStack Magnum.
+This profile provisions one controller node and a user-defined number of compute nodes.
+Default Magnum scripts and settings are used for the deployment.
+"""
+
 # Set the instructions to be displayed on the experiment page.
 tour = ig.Tour()
+tour.Description = (ig.Tour.MARKDOWN, description)
 tour.Instructions(ig.Tour.MARKDOWN,instructions)
 request.addTour(tour)
 
