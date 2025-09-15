@@ -44,8 +44,8 @@ openstack coe cluster template create k8s-default-template \
     --keypair default \
     --external-network public \
     --dns-nameserver 8.8.8.8 \
-    --master-flavor m1.small \
-    --flavor m1.small \
+    --master-flavor m1.medium \
+    --flavor m1.medium \
     --docker-volume-size 5 \
     --network-driver flannel \
     --coe kubernetes

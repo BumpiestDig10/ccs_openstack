@@ -50,6 +50,7 @@ enable_service g-api g-reg n-api n-crt n-obj n-cpu n-cond n-sch n-novnc n-cauth
 enable_service neutron_api neutron-dhcp-agent neutron-l3-agent neutron-metadata-agent openvswitch-agent
 enable_service horizon
 enable_service cinder c-api c-vol c-sch
+enable_service heat h-api h-api-cfn h-api-cw h-eng
 
 # Enable the services requested by the user: Manila and Magnum.
 # enable_plugin manila https://opendev.org/openstack/manila # (uncomment if you want the Manila service)
@@ -67,7 +68,6 @@ enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
 MAGNUM_K8S_TEMPLATE_DEFAULT_DRIVER=k8s_fedora_atomic_magnum
 
 # Disable services not needed for this profile to speed up deployment.
-disable_service heat h-api h-api-cfn h-api-cw h-eng
 disable_service swift s-proxy s-object s-container s-account
 
 # Log file location

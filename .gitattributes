@@ -1,0 +1,6 @@
+# Set the default behavior to auto-detect text files
+* text=auto
+
+# Force python scripts and shell scripts to use Unix-style (LF) line endings
+*.py text eol=lf
+*.sh text eol=lf
