@@ -13,7 +13,6 @@ This profile provisions a multi-node OpenStack Magnum Test on CloudLab.
 import geni.portal as portal
 import geni.rspec.pg as pg
 import geni.rspec.emulab as emulab
-import geni.rspec.igext as IG
 
 # Create a portal context object.
 # This is the main interface to the CloudLab portal environment.
@@ -163,8 +162,8 @@ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster c
 """
 
 # Set the instructions to be displayed on the experiment page.
-tour = IG.Tour()
-tour.Instructions(IG.Tour.MARKDOWN,instructions)
+tour = pg.Tour()
+tour.Instructions(pg.Tour.MARKDOWN,instructions)
 pg.addTour(tour)
 
 # === Finalization ===
