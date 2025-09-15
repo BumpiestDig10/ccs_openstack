@@ -92,8 +92,8 @@ lan.addInterface(iface_controller)
 # Add post-boot execution services to the controller node.
 # These commands are executed sequentially as root after the OS boots.
 # The repository is cloned to /local/repository automatically.[9, 16]
-controller.addService(pg.Execute(shell="sh", command="/local/repository/scripts/01-install-openstack.sh {}".format(params.os_password)))
-controller.addService(pg.Execute(shell="sh", command="/local/repository/scripts/02-configure-magnum.sh"))
+controller.addService(pg.Execute(shell="sh", command="sudo /local/repository/scripts/01-install-openstack.sh {}".format(params.os_password)))
+controller.addService(pg.Execute(shell="sh", command="sudo /local/repository/scripts/02-configure-magnum.sh"))
 
 # --- Compute Nodes Definition ---
 # These nodes will run the OpenStack Nova compute service and host the VMs.
