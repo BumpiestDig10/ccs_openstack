@@ -1,6 +1,11 @@
-#!/usr/bin/env python
 # profile.py: A geni-lib script to deploy a multi-node OpenStack + Kubernetes
 # environment on CloudLab.
+
+#!/usr/bin/env python
+
+'''
+This profile provisions a multi-node OpenStack Magnum Test on CloudLab.
+'''
 
 # Import the necessary geni-lib libraries.
 # geni.portal is used for defining user-configurable parameters.
@@ -100,7 +105,7 @@ for i in range(params.computeNodeCount):
         node.hardware_type = params.hwType
     
     # Add the compute node to the LAN.
-    iface_compute = node.addInterface(f"if0")
+    iface_compute = node.addInterface("if0")
     lan.addInterface(iface_compute)
 
 # === Finalization ===
