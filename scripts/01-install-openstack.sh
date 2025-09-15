@@ -52,13 +52,21 @@ enable_service horizon
 enable_service cinder c-api c-vol c-sch
 enable_service heat h-api h-api-cfn h-api-cw h-eng
 
-# Enable the services requested by the user: Manila and Magnum.
+enable_plugin heat https://opendev.org/openstack/heat
 # enable_plugin manila https://opendev.org/openstack/manila # (uncomment if you want the Manila service)
 # enable_plugin manila-ui https://opendev.org/openstack/manila-ui   # (uncomment if you want the Manila dashboard)
 enable_plugin magnum https://opendev.org/openstack/magnum
 enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
 
 # --- Service Configuration ---
+
+# Might need to add an Image for Heat to use. Uncomment if needed.
+# https://docs.openstack.org/heat/latest/getting_started/on_devstack.html#
+# IMAGE_URL_SITE="https://download.fedoraproject.org"
+# IMAGE_URL_PATH="/pub/fedora/linux/releases/37/Cloud/x86_64/images/"
+# IMAGE_URL_FILE="Fedora-Cloud-Base-37-1.7.x86_64.qcow2"
+# IMAGE_URLS+=","$IMAGE_URL_SITE$IMAGE_URL_PATH$IMAGE_URL_FILE
+
 # Use the 'generic' driver for Manila, which uses a service VM.
 # This is the simplest backend for a test environment.
 # MANILA_ENABLED_BACKEND_NAMES=generic  # (uncomment if you want the Manila service)
