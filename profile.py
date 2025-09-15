@@ -100,7 +100,7 @@ for i in range(params.computeNodeCount):
         node.hardware_type = params.hwType
     
     # Add the compute node to the LAN.
-    iface_compute = node.addInterface(f"if0")
+    iface_compute = node.addInterface("if0")
     lan.addInterface(iface_compute)
 
 # === Finalization ===
