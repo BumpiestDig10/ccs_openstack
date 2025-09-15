@@ -35,6 +35,7 @@ ADMIN_PASSWORD=$os_password
 DATABASE_PASSWORD=\$ADMIN_PASSWORD
 RABBIT_PASSWORD=\$ADMIN_PASSWORD
 SERVICE_PASSWORD=\$ADMIN_PASSWORD
+HEAT_STACK_DOMAIN_ADMIN_PASSWORD=\$ADMIN_PASSWORD
 
 # --- Networking ---
 # Use the primary IP of this node. Assumes eno1 is the experiment interface.
