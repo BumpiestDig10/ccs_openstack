@@ -175,10 +175,10 @@ $ openstack stack list
 """
 
 # Set the instructions to be displayed on the experiment page.
-#tour = ig.Tour()
+tour = ig.Tour()
 # tour.Description = (ig.Tour.MARKDOWN, description)
-#tour.Instructions(ig.Tour.MARKDOWN,instructions)
-#request.addTour(tour)
+tour.Instructions(ig.Tour.MARKDOWN,instructions)
+request.addTour(tour)
 
 # === Finalization ===
 # Print the generated RSpec to the CloudLab portal, which will then use it
