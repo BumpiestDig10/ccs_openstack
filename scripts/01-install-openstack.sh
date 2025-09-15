@@ -10,7 +10,6 @@ exec > >(tee -a ${LOG_FILE}) 2>&1
 
 echo "Starting OpenStack Installation via DevStack..."
 
-
 # sudo su
 
 # --- System Preparation ---
