@@ -5,6 +5,10 @@
 Kubernetes is deployed using OpenStack Magnum.
 This profile provisions one controller node and a user-defined number of compute nodes.
 Default Magnum scripts and settings are used for the deployment.
+
+TODO Figure out the description.
+TODO Deploy cluster with mulitple worker nodes present to test.
+TODO Check if os_password affects dashboard credentials, my guess - it doesn't.
 """
 
 #!/usr/bin/env python
