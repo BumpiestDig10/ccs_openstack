@@ -64,14 +64,14 @@ pc.defineParameter(
 pc.defineParameter(
     "os_username", "OpenStack Username", 
     portal.ParameterType.STRING, 
-    "nevilleLongbottom",
+    "crookshanks",
     longDescription="Custom username for OpenStack authentication (required). Defaulting to 'nevilleLongbottom'."
 )
 
 pc.defineParameter(
     "os_password", "OpenStack Password",
     portal.ParameterType.STRING,
-    "anythingOffTheTrolley?",
+    "chocolateFrog!",
     longDescription="Custom password for OpenStack authentication (required). Defaulting to 'anythingOffTheTrolley?'."  # TODO Check if this affects dashboard credentials, my guess - it doesn't.
 )
 
@@ -124,20 +124,24 @@ for i in range(params.computeNodeCount):
 # has created an experiment using the profile. Markdown is supported.
 
 instructions = """
-### Basic Instructions
+## Basic Instructions
 
 **PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
 - While the experiment nodes are being provisioned, you can monitor the `logs` on the project page.
 - When the nodes start booting, you can inspect their status either in `Topology View` or `List View`.
-- Once a node is booted and it's 'Status' column shows 'ready', you can click on the settings gear icon on the right side of the experiment page to open a shell to the node. Here, you can monitor the installation progress by viewing log files or by inspecting running services.
+- Once a node is booted and it's 'Status' column shows 'ready', you can click on the settings gear icon on the right side of the experiment page to open a shell to the node.
+    - You can monitor the setup progress by viewing log files or by inspecting running services.
+    - Browse to `/opt/stack/logs/`. You can use `tail -f <logfile>` to monitor log files in real-time.
+    - Use `$ systemctl status <service>` to check the status of services.
 
 Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
 Default dashboard credentials are:
-1. `username`: admin , `password`: password
-2. `username`: demo , `password`: password
+1. `admin` / `password`
+2. `demo` / `password`
 
-> **OpenStack Login Credentials**
-> Click on the `Bindings` tab on the experiment page to see the OpenStack login credentials you specified when instantiating the profile.
+### OpenStack Login Credentials
+Default: `crookshanks` / `chocolateFrog!`
+If you changed the default values and forgot what you set it to, click on the `Bindings` tab on the experiment page to see the custom settings.
 
 ### Some commands to run on the controller node
 
@@ -155,13 +159,23 @@ $ chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
 $ openstack keypair list	# To Confirm the keypair was created.
 
 $ openstack [option] --help
-$ openstack coe cluster template list # This shows a list of custom K8s templates. Note the UUID of the required template.
+$ openstack coe cluster template list # This shows a list of custom K8s templates. # Note the UUID of the required template.
 
-$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 2 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
+$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 1 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
 $ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process. Press Ctrl+C to exit watch.
 
-$ openstack stack list
+$ openstack stack list  # Note the stack ID of the cluster.
+$ watch openstack stack resource list <stack_id>  # Replace <stack_id> with the actual stack ID.
+
+# If cluster creation is unsuccessful, note it's Stack name and resource name to see the error message:
+$ openstack stack list  # Note the stack name of the failed cluster.
+$ openstack stack resource list <failed-stack-name> # Replace <failed-stack-name> with the actual stack name and note the failed resource's name.
+$ openstack stack resource show <failed-stack-name> <failed-resource-name>  # Replace <failed-stack-name> and <failed-resource-name> with actual values to see the error message.
 ```
+
+> **Note**
+> - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes, or decreasing the number of worker nodes for the cluster.
+> - Using `watch` option is optional, it just refreshes the output every 2 seconds.
 
 ### Resources
 - [CloudLab Documentation](https://docs.cloudlab.us/)
