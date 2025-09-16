@@ -5,10 +5,6 @@
 Kubernetes is deployed using OpenStack Magnum.
 This profile provisions one controller node and a user-defined number of compute nodes.
 Default Magnum scripts and settings are used for the deployment.
-
-TODO Figure out the description.
-TODO Deploy cluster with mulitple worker nodes present to test.
-TODO Check if os_password affects dashboard credentials, my guess - it doesn't.
 """
 
 #!/usr/bin/env python
@@ -65,14 +61,14 @@ pc.defineParameter(
     "os_username", "OpenStack Username", 
     portal.ParameterType.STRING, 
     "crookshanks",
-    longDescription="Custom username for OpenStack authentication (required). Defaulting to 'nevilleLongbottom'."
+    longDescription="Custom username for OpenStack authentication (required). Defaulting to 'crookshanks'."
 )
 
 pc.defineParameter(
     "os_password", "OpenStack Password",
     portal.ParameterType.STRING,
     "chocolateFrog!",
-    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'anythingOffTheTrolley?'."  # TODO Check if this affects dashboard credentials, my guess - it doesn't.
+    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'chocolateFrog!'."
 )
 
 # Retrieve the bound parameters from the portal context.
