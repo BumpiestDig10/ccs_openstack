@@ -161,7 +161,7 @@ $ openstack keypair list	# To Confirm the keypair was created.
 $ openstack [option] --help
 $ openstack coe cluster template list # This shows a list of custom K8s templates. # Note the UUID of the required template.
 
-$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 1 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
+$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 1 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'.   # Replace <UUID> with the actual UUID as noted previously.
 $ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process. Press Ctrl+C to exit watch.
 
 $ openstack stack list  # Note the stack ID of the cluster.
@@ -174,7 +174,7 @@ $ openstack stack resource show <failed-stack-name> <failed-resource-name>  # Re
 ```
 
 > **Note**
-> - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes, or decreasing the number of worker nodes for the cluster.
+> - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes when instantiating the profile, or decreasing the number of worker nodes for the cluster.
 > - Using `watch` option is optional, it just refreshes the output every 2 seconds.
 
 ### Resources
