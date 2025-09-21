@@ -132,8 +132,8 @@ instructions = """
 
 Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
 Default dashboard credentials are:
-1. `admin` / `password`
-2. `demo` / `password`
+1. `admin` / `chocolateFrog!`
+2. `demo` / `chocolateFrog!`
 
 ### OpenStack Login Credentials
 Default: `crookshanks` / `chocolateFrog!`
