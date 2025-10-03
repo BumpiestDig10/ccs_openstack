@@ -12,7 +12,7 @@ TODO:
     - If XenVM is chosen, add option to specify RAM and CPU cores.
 2. Add warnings if insufficient resources are requested.
 
-Instrctions:
+Instructions:
 ## Basic Instructions
 
 **PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
