@@ -1,10 +1,87 @@
 # profile.py: A geni-lib script to deploy a multi-node
 # OpenStack + Kubernetes environment on CloudLab.
 
-""" Simple multi-node OpenStack + Kubernetes deployment using Ubuntu 24.04.
+"""
+Simple multi-node OpenStack + Kubernetes deployment using Ubuntu 24.04.
 Kubernetes is deployed using OpenStack Magnum.
 This profile provisions one controller node and a user-defined number of compute nodes.
 Default Magnum scripts and settings are used for the deployment.
+
+TODO: 
+1. Add option to choose between different types of node request (e.g., RawPC, XenVM).
+    - If XenVM is chosen, add option to specify RAM and CPU cores.
+2. Add warnings if insufficient resources are requested.
+
+Instrctions:
+## Basic Instructions
+
+**PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
+- While the experiment nodes are being provisioned, you can monitor the `logs` on the project page.
+- When the nodes start booting, you can inspect their status either in `Topology View` or `List View`.
+- Once a node is booted and it's 'Status' column shows 'ready', you can click on the settings gear icon on the right side of the experiment page to open a shell to the node.
+    - You can monitor the setup progress by viewing log files or by inspecting running services.
+    - Browse to `/opt/stack/logs/`. You can use `tail -f <logfile>` to monitor log files in real-time.
+    - Use `$ systemctl status <service>` to check the status of services.
+
+Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
+Default dashboard credentials are:
+1. `admin` / `chocolateFrog!`
+2. `demo` / `chocolateFrog!`
+
+### OpenStack Login Credentials
+Default: `crookshanks` / `chocolateFrog!`
+If you changed the default values and forgot what you set it to, click on the `Bindings` tab on the experiment page to see the custom settings.
+
+### Some commands to run on the controller node
+
+Click on the settings gear icon on the right side of the experiment page to open a shell to the controller node.
+
+#### Run every time you open a new shell
+```bash
+$ source /opt/devstack/openrc admin admin
+```
+
+#### Create Keypair and Deploy a Kubernetes Cluster
+```bash
+$ openstack keypair create mykey > ~/.ssh/mykey.pem   # Create a keypair for use with Kubernetes nodes.
+$ chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
+$ openstack keypair list	# To Confirm the keypair was created.
+
+$ openstack [option] --help
+$ openstack coe cluster template list # This shows a list of custom K8s templates. # Note the UUID of the required template.
+
+$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 1 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
+$ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process.
+
+$ openstack stack list  # Note the stack ID of the cluster.
+$ watch openstack stack resource list <stack_id>  # Replace <stack_id> with the actual stack ID.
+
+# If cluster creation is unsuccessful, note it's Stack name and resource name to see the error message:
+$ openstack stack list  # Note the stack name of the failed cluster.
+$ openstack stack resource list <failed-stack-name> # Replace <failed-stack-name> with the actual stack name and note the failed resource's name.
+$ openstack stack resource show <failed-stack-name> <failed-resource-name>  # Replace <failed-stack-name> and <failed-resource-name> with actual values to see the error message.
+```
+
+> **Note**
+> - It may happen that OpenStack does not get installed properly on the first attempt. If you encounter issues logging into the dashboard or if the `openstack` CLI commands do not work, browse `/tmp/install-openstack.log` on the controller node to see what went wrong. You can also try re-running the installation script: `sudo -H /local/repository/scripts/01-install-openstack.sh chocolateFrog!` (replace `chocolateFrog!` with your chosen admin password if you changed it). If you continue to face issues, consider re-instantiating the profile with a different hardware type.
+> - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes when instantiating the profile, or decreasing the number of worker nodes for the cluster.
+> - If you face issues with Magnum, browse `/tmp/configure-magnum.log` on the controller node to see what went wrong.
+> - Using `watch` option is optional, it just refreshes the output every 2 seconds. Use `Ctrl+C` to exit watch.
+
+### Resources
+- [CloudLab Documentation](https://docs.cloudlab.us/)
+- [OpenStack Documentation](https://docs.openstack.org/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/home/)
+- [DevStack Documentation](https://docs.openstack.org/devstack/latest/)
+- [Magnum Documentation](https://docs.openstack.org/magnum/latest/)
+- [Keystone Documentation](https://docs.openstack.org/keystone/latest/)
+- [Horizon Documentation](https://docs.openstack.org/horizon/latest/)
+- [Nova Documentation](https://docs.openstack.org/nova/latest/)
+- [Neutron Documentation](https://docs.openstack.org/neutron/latest/)
+- [Glance Documentation](https://docs.openstack.org/glance/latest/)
+- [Cinder Documentation](https://docs.openstack.org/cinder/latest/)
+- [Heat Documentation](https://docs.openstack.org/heat/latest/)
+- [Manila Documentation](https://docs.openstack.org/manila/latest/)
 """
 
 #!/usr/bin/env python
@@ -115,85 +192,11 @@ for i in range(params.computeNodeCount):
     lan.addInterface(iface_compute)
     
 
-# === Instructions ===
-# The 'instructions' text is displayed on the experiment page after the user
-# has created an experiment using the profile. Markdown is supported.
-
-instructions = """
-## Basic Instructions
-
-**PATIENCE IS KEY!** The OpenStack installation and configuration process is complex and can take 30-60 minutes to complete.
-- While the experiment nodes are being provisioned, you can monitor the `logs` on the project page.
-- When the nodes start booting, you can inspect their status either in `Topology View` or `List View`.
-- Once a node is booted and it's 'Status' column shows 'ready', you can click on the settings gear icon on the right side of the experiment page to open a shell to the node.
-    - You can monitor the setup progress by viewing log files or by inspecting running services.
-    - Browse to `/opt/stack/logs/`. You can use `tail -f <logfile>` to monitor log files in real-time.
-    - Use `$ systemctl status <service>` to check the status of services.
-
-Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
-Default dashboard credentials are:
-1. `admin` / `chocolateFrog!`
-2. `demo` / `chocolateFrog!`
-
-### OpenStack Login Credentials
-Default: `crookshanks` / `chocolateFrog!`
-If you changed the default values and forgot what you set it to, click on the `Bindings` tab on the experiment page to see the custom settings.
-
-### Some commands to run on the controller node
-
-Click on the settings gear icon on the right side of the experiment page to open a shell to the controller node.
-
-#### Run every time you open a new shell
-```bash
-$ source /opt/devstack/openrc admin admin
-```
-
-#### Create Keypair and Deploy a Kubernetes Cluster
-```bash
-$ openstack keypair create mykey > ~/.ssh/mykey.pem   # Create a keypair for use with Kubernetes nodes.
-$ chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
-$ openstack keypair list	# To Confirm the keypair was created.
-
-$ openstack [option] --help
-$ openstack coe cluster template list # This shows a list of custom K8s templates. # Note the UUID of the required template.
-
-$ openstack coe cluster create --cluster-template <UUID> --master-count 1 --node-count 1 --keypair mykey  my-first-k8s-cluster	# Creates a K8s deployement named 'my-first-k8s-cluster'. Replace <UUID> with the actual UUID as noted previously.
-$ watch openstack coe cluster show my-first-k8s-cluster    # Monitor the cluster creation process.
-
-$ openstack stack list  # Note the stack ID of the cluster.
-$ watch openstack stack resource list <stack_id>  # Replace <stack_id> with the actual stack ID.
-
-# If cluster creation is unsuccessful, note it's Stack name and resource name to see the error message:
-$ openstack stack list  # Note the stack name of the failed cluster.
-$ openstack stack resource list <failed-stack-name> # Replace <failed-stack-name> with the actual stack name and note the failed resource's name.
-$ openstack stack resource show <failed-stack-name> <failed-resource-name>  # Replace <failed-stack-name> and <failed-resource-name> with actual values to see the error message.
-```
-
-> **Note**
-> - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes when instantiating the profile, or decreasing the number of worker nodes for the cluster.
-> - Using `watch` option is optional, it just refreshes the output every 2 seconds. Use `Ctrl+C` to exit watch.
-
-### Resources
-- [CloudLab Documentation](https://docs.cloudlab.us/)
-- [OpenStack Documentation](https://docs.openstack.org/)
-- [Kubernetes Documentation](https://kubernetes.io/docs/home/)
-- [DevStack Documentation](https://docs.openstack.org/devstack/latest/)
-- [Magnum Documentation](https://docs.openstack.org/magnum/latest/)
-- [Keystone Documentation](https://docs.openstack.org/keystone/latest/)
-- [Horizon Documentation](https://docs.openstack.org/horizon/latest/)
-- [Nova Documentation](https://docs.openstack.org/nova/latest/)
-- [Neutron Documentation](https://docs.openstack.org/neutron/latest/)
-- [Glance Documentation](https://docs.openstack.org/glance/latest/)
-- [Cinder Documentation](https://docs.openstack.org/cinder/latest/)
-- [Heat Documentation](https://docs.openstack.org/heat/latest/)
-- [Manila Documentation](https://docs.openstack.org/manila/latest/)
-"""
-
 # Set the instructions to be displayed on the experiment page.
-tour = ig.Tour()
+# tour = ig.Tour()
 # tour.Description = (ig.Tour.MARKDOWN, description)
-tour.Instructions(ig.Tour.MARKDOWN,instructions)
-request.addTour(tour)
+# tour.Instructions(ig.Tour.MARKDOWN,instructions)
+# request.addTour(tour)
 
 # === Finalization ===
 # Print the generated RSpec to the CloudLab portal, which will then use it

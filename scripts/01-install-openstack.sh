@@ -19,6 +19,7 @@ apt-get install -y git
 
 # --- DevStack Setup ---
 # Clone the DevStack repository.
+rm -rf /opt/devstack
 git clone https://opendev.org/openstack/devstack /opt/devstack
 
 # Create a non-root user 'stack' for DevStack to run as.
