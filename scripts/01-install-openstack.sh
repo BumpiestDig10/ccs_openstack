@@ -24,7 +24,7 @@ git clone https://opendev.org/openstack/devstack /opt/devstack
 # Create a non-root user 'stack' for DevStack to run as.
 /opt/devstack/tools/create-stack-user.sh
 
-os_password=${1:-"password"}
+os_password=${1:-"chocolateFrog!"}
 
 # Create the local.conf file. This is the primary configuration file for DevStack.
 # It specifies which services to enable, sets passwords, and configures networking.
