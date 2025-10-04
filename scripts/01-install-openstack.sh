@@ -61,12 +61,11 @@ enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
 
 # --- Service Configuration ---
 
-# Might need to add an Image for Heat to use. Uncomment if needed.
-# https://docs.openstack.org/heat/latest/getting_started/on_devstack.html#
-# IMAGE_URL_SITE="https://download.fedoraproject.org"
-# IMAGE_URL_PATH="/pub/fedora/linux/releases/37/Cloud/x86_64/images/"
-# IMAGE_URL_FILE="Fedora-Cloud-Base-37-1.7.x86_64.qcow2"
-# IMAGE_URLS+=","$IMAGE_URL_SITE$IMAGE_URL_PATH$IMAGE_URL_FILE
+# Add an Image for Heat to use. https://docs.openstack.org/heat/latest/getting_started/on_devstack.html#
+IMAGE_URL_SITE="https://download.fedoraproject.org"
+IMAGE_URL_PATH="/pub/fedora/linux/releases/37/Cloud/x86_64/images/"
+IMAGE_URL_FILE="Fedora-Cloud-Base-37-1.7.x86_64.qcow2"
+IMAGE_URLS+=","$IMAGE_URL_SITE$IMAGE_URL_PATH$IMAGE_URL_FILE
 
 # Use the 'generic' driver for Manila, which uses a service VM.
 # This is the simplest backend for a test environment.

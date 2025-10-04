@@ -7,11 +7,6 @@ Kubernetes is deployed using OpenStack Magnum.
 This profile provisions one controller node and a user-defined number of compute nodes.
 Default Magnum scripts and settings are used for the deployment.
 
-TODO: 
-1. Add option to choose between different types of node request (e.g., RawPC, XenVM).
-    - If XenVM is chosen, add option to specify RAM and CPU cores.
-2. Add warnings if insufficient resources are requested.
-
 Instructions:
 ## Basic Instructions
 
@@ -43,8 +38,9 @@ $ source /opt/devstack/openrc admin admin
 
 #### Create Keypair and Deploy a Kubernetes Cluster
 ```bash
-$ openstack keypair create mykey > ~/.ssh/mykey.pem   # Create a keypair for use with Kubernetes nodes.
-$ chmod 600 ~/.ssh/mykey.pem  # Permissions for the private key.
+$ ssh-keygen -t rsa -b 4096 -f ~/.ssh/mykey
+$ openstack keypair create --public-key ~/.ssh/mykey.pub mykey
+$ chmod 600 ~/.ssh/mykey.pub  # Permissions for the private key.
 $ openstack keypair list	# To Confirm the keypair was created.
 
 $ openstack [option] --help
@@ -62,10 +58,12 @@ $ openstack stack resource list <failed-stack-name> # Replace <failed-stack-name
 $ openstack stack resource show <failed-stack-name> <failed-resource-name>  # Replace <failed-stack-name> and <failed-resource-name> with actual values to see the error message.
 ```
 
+After the cluster is successfully created, you can ssh into a node using `ssh -i ~/.ssh/mykey core@<node-ip>`. You can get the node IPs from the [dashboard](http://{host-controller}/dashboard) or by running `openstack server list`.
+
 > **Note**
-> - It may happen that OpenStack does not get installed properly on the first attempt. If you encounter issues logging into the dashboard or if the `openstack` CLI commands do not work, browse `/tmp/install-openstack.log` on the controller node to see what went wrong. You can also try re-running the installation script: `sudo -H /local/repository/scripts/01-install-openstack.sh chocolateFrog!` (replace `chocolateFrog!` with your chosen admin password if you changed it). If you continue to face issues, consider re-instantiating the profile with a different hardware type.
+> - It may happen that OpenStack does not get installed properly on the first attempt. If you encounter issues logging into the dashboard or if the `openstack` CLI commands do not work, browse `/tmp/install-openstack.log` on the controller node to see what went wrong. If you continue to face issues, consider re-instantiating the profile with a different hardware type.
+> - If you face issues with Magnum/Kubernetes, browse `/tmp/configure-magnum.log` and `/opt/stack/logs/` on the controller node to see what went wrong.
 > - If the cluster creation fails due to insufficient resources, try increasing the number of compute nodes when instantiating the profile, or decreasing the number of worker nodes for the cluster.
-> - If you face issues with Magnum, browse `/tmp/configure-magnum.log` on the controller node to see what went wrong.
 > - Using `watch` option is optional, it just refreshes the output every 2 seconds. Use `Ctrl+C` to exit watch.
 
 ### Resources

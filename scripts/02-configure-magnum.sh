@@ -41,12 +41,12 @@ echo "Found image: '$K8S_IMAGE_NAME'. This will be used for the cluster template
 echo "Creating Magnum Cluster Template for Kubernetes..."
 openstack coe cluster template create k8s-default-template \
     --image "$K8S_IMAGE_NAME" \
-    --keypair default \
+    --keypair mykey \
     --external-network public \
     --dns-nameserver 8.8.8.8 \
     --master-flavor m1.medium \
     --flavor m1.small \
-    --docker-volume-size 20 \
+    --docker-volume-size 150 \
     --network-driver flannel \
     --coe kubernetes
 
