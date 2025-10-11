@@ -52,6 +52,7 @@ enable_service neutron_api neutron-dhcp-agent neutron-l3-agent neutron-metadata-
 enable_service horizon
 enable_service cinder c-api c-vol c-sch
 enable_service heat h-api h-api-cfn h-api-cw h-eng
+enable_service swift s-proxy s-object s-container s-account
 
 enable_plugin heat https://opendev.org/openstack/heat
 # enable_plugin manila https://opendev.org/openstack/manila # (uncomment if you want the Manila service)
@@ -76,7 +77,7 @@ IMAGE_URLS+=","$IMAGE_URL_SITE$IMAGE_URL_PATH$IMAGE_URL_FILE
 MAGNUM_K8S_TEMPLATE_DEFAULT_DRIVER=k8s_fedora_atomic_magnum
 
 # Disable services not needed for this profile to speed up deployment.
-disable_service swift s-proxy s-object s-container s-account
+
 
 # Log file location
 LOGFILE=/opt/stack/logs/stack.sh.log
