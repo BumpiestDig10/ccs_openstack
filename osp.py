@@ -20,11 +20,11 @@ Instructions:
 
 Once the controller node's `Status` changes to `ready`, and profile configuration scripts finish configuring OpenStack (indicated by `Startup` column changing to `Finished`), you'll be able to visit and log in to [the OpenStack Dashboard](http://{host-controller}/dashboard).
 Default dashboard credentials are:
-1. `admin` / `chocolateFrog!`
-2. `demo` / `chocolateFrog!`
+1. `admin` / `chocolateFrog`
+2. `demo` / `chocolateFrog`
 
 ### OpenStack Login Credentials
-Default: `crookshanks` / `chocolateFrog!`
+Default: `crookshanks` / `chocolateFrog`
 If you changed the default values and forgot what you set it to, click on the `Bindings` tab on the experiment page to see the custom settings.
 
 ### Some commands to run on the controller node
@@ -116,7 +116,7 @@ pc.defineParameter(
 pc.defineParameter(
     "hwType", "Hardware Type",
     portal.ParameterType.NODETYPE,
-    "d430", # Default to d430 nodes.
+    "d710", # Default to d430 nodes.
     longDescription="Specify a hardware type for all nodes. Clear Selection for any available type."
 )
 
@@ -142,8 +142,8 @@ pc.defineParameter(
 pc.defineParameter(
     "os_password", "OpenStack Password",
     portal.ParameterType.STRING,
-    "chocolateFrog!",
-    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'chocolateFrog!'."
+    "chocolateFrog",
+    longDescription="Custom password for OpenStack authentication (required). Defaulting to 'chocolateFrog'."
 )
 
 # Retrieve the bound parameters from the portal context.
@@ -189,13 +189,6 @@ for i in range(params.computeNodeCount):
     iface_compute = node.addInterface("if0")
     lan.addInterface(iface_compute)
     
-
-# Set the instructions to be displayed on the experiment page.
-# tour = ig.Tour()
-# tour.Description = (ig.Tour.MARKDOWN, description)
-# tour.Instructions(ig.Tour.MARKDOWN,instructions)
-# request.addTour(tour)
-
 # === Finalization ===
 # Print the generated RSpec to the CloudLab portal, which will then use it
 # to provision the experiment.
