@@ -49,7 +49,6 @@ openstack coe cluster template create k8s-default-template \
     --docker-volume-size 150 \
     --network-driver flannel \
     --coe kubernetes
-    --labels kube_dashboard_enabled=true, auto_healing_enabled=true, monitoring_enabled=true
 
 # --- Verification ---
 # List the created cluster templates to confirm success.
